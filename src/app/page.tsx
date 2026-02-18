@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
-import { Mic, Square, Save, FileText, Loader2, Printer, Edit2, LogOut, Users, QrCode } from 'lucide-react';
+import { Mic, Square, Save, FileText, Loader2, Printer, Edit2, LogOut, Users, QrCode, Shield } from 'lucide-react';
 import { DoctorProfileModal } from '@/components/DoctorProfileModal';
 import { LoginScreen } from '@/components/LoginScreen';
 import { QRModal } from '@/components/QRModal';
@@ -68,6 +68,7 @@ function HomeContent() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userRole, setUserRole] = useState('doctor');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isQROpen, setIsQROpen] = useState(false);
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfile>({
@@ -80,7 +81,14 @@ function HomeContent() {
   useEffect(() => {
     // Auth
     const session = localStorage.getItem('doctorSession');
-    if (session) setIsLoggedIn(true);
+    if (session) {
+      setIsLoggedIn(true);
+      try {
+        const parsed = JSON.parse(session);
+        if (parsed.role) setUserRole(parsed.role);
+        if (parsed.name) setDoctorProfile(prev => ({ ...prev, name: parsed.name }));
+      } catch { }
+    }
 
     // Doctor profile
     const saved = localStorage.getItem('doctorProfile');
@@ -127,7 +135,11 @@ function HomeContent() {
   };
 
   if (!isLoggedIn) {
-    return <LoginScreen onLogin={() => setIsLoggedIn(true)} />;
+    return <LoginScreen onLogin={(username, role, name) => {
+      setIsLoggedIn(true);
+      setUserRole(role);
+      if (name) setDoctorProfile(prev => ({ ...prev, name }));
+    }} />;
   }
 
   const handleSaveProfile = (newProfile: DoctorProfile) => {
@@ -222,6 +234,17 @@ function HomeContent() {
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">Пациенты</span>
             </button>
+            {userRole === 'admin' && (
+              <button
+                onClick={() => router.push('/admin')}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                title="Управление пользователями"
+              >
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Админ</span>
+              </button>
+            )}
+
             <button
               onClick={() => setIsQROpen(true)}
               className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"

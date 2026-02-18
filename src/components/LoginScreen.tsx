@@ -4,15 +4,8 @@ import { useState } from 'react';
 import { Stethoscope, Eye, EyeOff } from 'lucide-react';
 
 interface LoginScreenProps {
-    onLogin: (username: string) => void;
+    onLogin: (username: string, role: string, name: string) => void;
 }
-
-// Simple hardcoded credentials for MVP
-// In production, replace with proper auth (e.g., NextAuth + Supabase)
-const VALID_USERS: Record<string, string> = {
-    'doctor': 'doctor123',
-    'admin': 'admin123',
-};
 
 export function LoginScreen({ onLogin }: LoginScreenProps) {
     const [username, setUsername] = useState('');
@@ -26,23 +19,38 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
         setError('');
         setIsLoading(true);
 
-        // Simulate network delay for UX
-        await new Promise(resolve => setTimeout(resolve, 400));
+        try {
+            const res = await fetch('/api/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username.trim(), password }),
+            });
 
-        const trimmedUser = username.trim().toLowerCase();
+            const data = await res.json();
 
-        if (VALID_USERS[trimmedUser] && VALID_USERS[trimmedUser] === password) {
+            if (!res.ok) {
+                if (res.status === 403) {
+                    setError('Аккаунт отключён. Обратитесь к администратору.');
+                } else {
+                    setError('Неверный логин или пароль');
+                }
+                return;
+            }
+
             // Save session to localStorage
             localStorage.setItem('doctorSession', JSON.stringify({
-                username: trimmedUser,
+                username: data.user.login,
+                name: data.user.name,
+                role: data.user.role,
                 loginTime: new Date().toISOString(),
             }));
-            onLogin(trimmedUser);
-        } else {
-            setError('Неверный логин или пароль');
-        }
 
-        setIsLoading(false);
+            onLogin(data.user.login, data.user.role, data.user.name);
+        } catch {
+            setError('Ошибка соединения. Попробуйте снова.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
