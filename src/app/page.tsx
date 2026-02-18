@@ -3,10 +3,13 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
-import { Mic, Square, Save, FileText, Loader2, Printer, Edit2, LogOut, Users, QrCode, Shield } from 'lucide-react';
-import { DoctorProfileModal } from '@/components/DoctorProfileModal';
+import { Mic, Square, Save, FileText, Loader2, Printer, Edit2, LogOut, Users, QrCode, Shield, LayoutTemplate, Plus, X, ArrowLeft } from 'lucide-react';
+import { DoctorProfileModal, CustomField } from '@/components/DoctorProfileModal';
 import { LoginScreen } from '@/components/LoginScreen';
 import { QRModal } from '@/components/QRModal';
+import { TemplateSelector } from '@/components/TemplateSelector';
+import { CouponPage } from '@/components/CouponPage';
+import { getTemplates, AttachedTemplate } from '@/lib/templates';
 
 interface Procedure {
   name: string;
@@ -60,6 +63,7 @@ interface DoctorProfile {
   experience?: string;
   whatsapp?: string;
   telegram?: string;
+  customFields?: CustomField[];
 }
 
 function HomeContent() {
@@ -72,6 +76,9 @@ function HomeContent() {
   const [userLogin, setUserLogin] = useState('');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isQROpen, setIsQROpen] = useState(false);
+  const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
+  const [attachedTemplates, setAttachedTemplates] = useState<AttachedTemplate[]>([]);
+  const [showCoupons, setShowCoupons] = useState(false);
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfile>({
     name: '',
     specialty: '',
@@ -243,9 +250,18 @@ function HomeContent() {
 
         {/* Header - Screen Only */}
         <header className="flex justify-between items-center border-b pb-6 print:hidden">
-          <div>
-            <h1 className="text-3xl font-bold text-blue-600">AI Doctor Assistant</h1>
-            <p className="text-gray-500">Голосовой ассистент врача</p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Назад"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-3xl font-bold text-blue-600">AI Doctor Assistant</h1>
+              <p className="text-gray-500">Голосовой ассистент врача</p>
+            </div>
           </div>
           <div className="flex gap-2 items-center">
             <button
@@ -254,6 +270,13 @@ function HomeContent() {
             >
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">Пациенты</span>
+            </button>
+            <button
+              onClick={() => router.push('/templates')}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
+            >
+              <LayoutTemplate className="w-4 h-4" />
+              <span className="hidden sm:inline">Шаблоны</span>
             </button>
             {userRole === 'admin' && (
               <button
@@ -359,153 +382,279 @@ function HomeContent() {
 
         {/* Results Form */}
         {result && (
-          <main className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-none">
-            <div className="p-6 bg-blue-50 border-b border-blue-100 flex justify-between items-center print:hidden">
-              <h2 className="text-lg font-semibold text-blue-800">Результаты анализа</h2>
-              <div className="flex gap-2">
-                <button onClick={() => { setResult(null); resetRecording(); }} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1">
-                  <Mic className="w-4 h-4" />
-                  Новый пациент
-                </button>
-                <button onClick={() => setResult(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">
-                  Назад
-                </button>
-                <button
-                  onClick={handlePrint}
-                  className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <Printer className="w-4 h-4" />
-                  Печать / PDF
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  Сохранить
-                </button>
-              </div>
-            </div>
-
-            <div className="p-8 space-y-6 print:p-0 print:space-y-4">
-              <div className="text-center mb-8 border-b pb-4 hidden print:block">
-                <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-widest">Консультационный Лист</h1>
-                <p className="text-gray-500 mt-1">{result.visitDate || new Date().toLocaleDateString('ru-RU')}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6 print:gap-4 text-sm">
-                <div className="space-y-1">
-                  <label className="font-bold text-gray-700 block uppercase text-xs tracking-wider">ФИО Пациента</label>
-                  <input
-                    type="text"
-                    value={result.patientName}
-                    onChange={(e) => setResult({ ...result, patientName: e.target.value })}
-                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 print:border-none print:p-0 print:text-lg print:font-semibold"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-gray-700 block uppercase text-xs tracking-wider">Дата рождения</label>
-                  <input
-                    type="text"
-                    value={result.dob}
-                    onChange={(e) => setResult({ ...result, dob: e.target.value })}
-                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 print:border-none print:p-0 print:text-lg"
-                  />
+          <>
+            <main className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-none">
+              <div className="p-6 bg-blue-50 border-b border-blue-100 flex justify-between items-center print:hidden">
+                <h2 className="text-lg font-semibold text-blue-800">Результаты анализа</h2>
+                <div className="flex gap-2 flex-wrap">
+                  <button onClick={() => { setResult(null); setAttachedTemplates([]); setShowCoupons(false); resetRecording(); }} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1">
+                    <Mic className="w-4 h-4" />
+                    Новый пациент
+                  </button>
+                  <button onClick={() => setResult(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">
+                    Назад
+                  </button>
+                  <button
+                    onClick={() => setIsTemplateSelectorOpen(true)}
+                    className="px-4 py-2 bg-teal-50 text-teal-700 border border-teal-200 rounded-lg text-sm font-medium hover:bg-teal-100 flex items-center gap-2 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Добавить шаблон
+                  </button>
+                  <button
+                    onClick={() => setShowCoupons(prev => !prev)}
+                    className={`px-4 py-2 border rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${showCoupons
+                      ? 'bg-amber-100 text-amber-800 border-amber-300'
+                      : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                      }`}
+                  >
+                    🎟️ Купоны {showCoupons ? '✓' : ''}
+                  </button>
+                  <button
+                    onClick={handlePrint}
+                    className="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Печать / PDF
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    Сохранить
+                  </button>
                 </div>
               </div>
 
-              <div className="space-y-1 pt-2">
-                <label className="font-bold text-gray-700 block uppercase text-xs tracking-wider">Жалобы</label>
-                <textarea
-                  rows={2}
-                  value={result.complaints}
-                  onChange={(e) => setResult({ ...result, complaints: e.target.value })}
-                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 print:border-none print:p-0 print:resize-none print:text-sm"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-gray-700 block uppercase text-xs tracking-wider">Анамнез</label>
-                <textarea
-                  rows={3}
-                  value={result.anamnesis}
-                  onChange={(e) => setResult({ ...result, anamnesis: e.target.value })}
-                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 print:border-none print:p-0 print:resize-none print:text-sm"
-                />
-              </div>
-
-              <div className="p-4 bg-gray-50 rounded-lg border border-gray-100 print:bg-transparent print:border-none print:p-0 print:mt-4">
-                <label className="font-bold text-gray-900 block mb-2 uppercase text-xs tracking-wider">Предварительный диагноз</label>
-                <input
-                  type="text"
-                  value={result.diagnosis}
-                  onChange={(e) => setResult({ ...result, diagnosis: e.target.value })}
-                  className="w-full p-2 bg-white border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg text-blue-900 print:text-black print:border-none print:p-0 print:bg-transparent"
-                />
-              </div>
-
-              {/* Procedures */}
-              <div className="space-y-1 print:mt-4">
-                <h3 className="font-bold text-gray-900 uppercase text-xs tracking-wider border-b pb-1">План Лечения (Процедуры)</h3>
-                <div className="grid grid-cols-1 gap-0">
-                  {result.procedures?.map((proc, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg print:p-0 print:hover:bg-transparent print:py-0.5 print:border-b print:border-gray-100">
-                      <span className="text-gray-800 print:text-black text-sm print:text-xs">{proc.name}</span>
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center">
-                          <input
-                            type="number"
-                            min="0"
-                            value={proc.quantity || ''}
-                            onChange={(e) => updateProcedure(idx, parseInt(e.target.value) || 0)}
-                            className={`w-16 p-1 border rounded text-right focus:ring-blue-500 focus:border-blue-500 
-                              print:border-none print:w-auto print:text-right print:font-bold print:text-xs
-                              ${proc.quantity > 0 ? 'print:text-black' : 'print:text-transparent'}`}
-                            placeholder="0"
-                          />
-                          <span className="text-sm text-gray-500 ml-1 print:hidden">сеанс(ов)</span>
-                          <span className={`hidden print:inline ml-1 text-xs ${proc.quantity > 0 ? 'text-black' : 'text-transparent'}`}>сеанс(ов)</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              <div className="p-8 space-y-6 print:p-0 print:space-y-4">
+                <div className="text-center mb-8 border-b pb-4 hidden print:block">
+                  <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-widest">Консультационный Лист</h1>
+                  <p className="text-gray-500 mt-1">{result.visitDate || new Date().toLocaleDateString('ru-RU')}</p>
                 </div>
-              </div>
 
-              <div className="space-y-1 print:mt-4">
-                <label className="font-bold text-gray-700 block uppercase text-xs tracking-wider">Дополнительные рекомендации</label>
-                <textarea
-                  rows={3}
-                  value={result.recommendations}
-                  onChange={(e) => setResult({ ...result, recommendations: e.target.value })}
-                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 print:border-none print:p-0 print:resize-none print:text-sm"
-                />
-              </div>
-
-              {/* Footer - Print Only */}
-              <div className="hidden print:flex flex-row justify-between items-end mt-8 pt-8 border-t border-gray-300">
-                <div className="flex items-start gap-4">
-                  {doctorProfile.avatarUrl && (
-                    <img src={doctorProfile.avatarUrl} alt="Doctor" className="w-16 h-16 rounded-full object-cover border border-gray-200" />
-                  )}
-                  <div className="text-sm">
-                    <p className="font-bold text-gray-900">{doctorProfile.name}</p>
-                    <p className="text-gray-600 italic">{doctorProfile.specialty}</p>
-                    {doctorProfile.experience && <p className="text-xs text-gray-500 mt-1">Стаж: {doctorProfile.experience}</p>}
-                    {doctorProfile.license && <p className="text-xs text-gray-500">{doctorProfile.license}</p>}
-                    <div className="mt-2 space-y-0.5 text-xs text-gray-600">
-                      {doctorProfile.whatsapp && <p>WhatsApp: {doctorProfile.whatsapp}</p>}
-                      {doctorProfile.telegram && <p>Telegram: {doctorProfile.telegram}</p>}
-                    </div>
+                <div className="grid grid-cols-2 gap-6 print:gap-4 text-sm">
+                  <div className="space-y-1">
+                    <label className="font-bold text-gray-700 block uppercase text-xs tracking-wider">ФИО Пациента</label>
+                    <input
+                      type="text"
+                      value={result.patientName}
+                      onChange={(e) => setResult({ ...result, patientName: e.target.value })}
+                      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 print:border-none print:p-0 print:text-lg print:font-semibold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-gray-700 block uppercase text-xs tracking-wider">Дата рождения</label>
+                    <input
+                      type="text"
+                      value={result.dob}
+                      onChange={(e) => setResult({ ...result, dob: e.target.value })}
+                      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 print:border-none print:p-0 print:text-lg"
+                    />
                   </div>
                 </div>
-                <div className="flex flex-col items-center">
-                  <img src="/footer_qr.jpg" alt="Info" className="w-24 h-24 object-contain mb-1" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+
+                <div className="space-y-1 pt-2">
+                  <label className="font-bold text-gray-700 block uppercase text-xs tracking-wider">Жалобы</label>
+                  <textarea
+                    rows={2}
+                    value={result.complaints}
+                    onChange={(e) => setResult({ ...result, complaints: e.target.value })}
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 print:border-none print:p-0 print:resize-none print:text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-700 block uppercase text-xs tracking-wider">Анамнез</label>
+                  <textarea
+                    rows={3}
+                    value={result.anamnesis}
+                    onChange={(e) => setResult({ ...result, anamnesis: e.target.value })}
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 print:border-none print:p-0 print:resize-none print:text-sm"
+                  />
+                </div>
+
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-100 print:bg-transparent print:border-none print:p-0 print:mt-4">
+                  <label className="font-bold text-gray-900 block mb-2 uppercase text-xs tracking-wider">Предварительный диагноз</label>
+                  <input
+                    type="text"
+                    value={result.diagnosis}
+                    onChange={(e) => setResult({ ...result, diagnosis: e.target.value })}
+                    className="w-full p-2 bg-white border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-lg text-blue-900 print:text-black print:border-none print:p-0 print:bg-transparent"
+                  />
+                </div>
+
+                {/* Procedures */}
+                <div className="space-y-1 print:mt-4">
+                  <h3 className="font-bold text-gray-900 uppercase text-xs tracking-wider border-b pb-1">План Лечения (Процедуры)</h3>
+                  <div className="grid grid-cols-1 gap-0">
+                    {result.procedures?.map((proc, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg print:p-0 print:hover:bg-transparent print:py-0.5 print:border-b print:border-gray-100">
+                        <span className="text-gray-800 print:text-black text-sm print:text-xs">{proc.name}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center">
+                            <input
+                              type="number"
+                              min="0"
+                              value={proc.quantity || ''}
+                              onChange={(e) => updateProcedure(idx, parseInt(e.target.value) || 0)}
+                              className={`w-16 p-1 border rounded text-right focus:ring-blue-500 focus:border-blue-500 
+                              print:border-none print:w-auto print:text-right print:font-bold print:text-xs
+                              ${proc.quantity > 0 ? 'print:text-black' : 'print:text-transparent'}`}
+                              placeholder="0"
+                            />
+                            <span className="text-sm text-gray-500 ml-1 print:hidden">сеанс(ов)</span>
+                            <span className={`hidden print:inline ml-1 text-xs ${proc.quantity > 0 ? 'text-black' : 'text-transparent'}`}>сеанс(ов)</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1 print:mt-4">
+                  <label className="font-bold text-gray-700 block uppercase text-xs tracking-wider">Дополнительные рекомендации</label>
+                  <textarea
+                    rows={3}
+                    value={result.recommendations}
+                    onChange={(e) => setResult({ ...result, recommendations: e.target.value })}
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 print:border-none print:p-0 print:resize-none print:text-sm"
+                  />
+                </div>
+
+                {/* Attached templates list (screen only) */}
+                {attachedTemplates.length > 0 && (
+                  <div className="space-y-2 print:hidden">
+                    <h3 className="font-bold text-gray-700 uppercase text-xs tracking-wider flex items-center gap-1">
+                      <LayoutTemplate className="w-3.5 h-3.5" />
+                      Прикреплённые шаблоны ({attachedTemplates.length})
+                    </h3>
+                    <div className="space-y-1">
+                      {attachedTemplates.map((at, idx) => (
+                        <div key={at.templateId + idx} className="flex items-center justify-between p-2 bg-teal-50 rounded-lg border border-teal-100">
+                          <span className="text-sm text-teal-800 font-medium">{at.name}</span>
+                          <button
+                            onClick={() => setAttachedTemplates(prev => prev.filter((_, i) => i !== idx))}
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                            title="Убрать шаблон"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Footer - Print Only */}
+                <div className="hidden print:flex flex-row justify-between items-end mt-8 pt-8 border-t border-gray-300">
+                  <div className="flex items-start gap-4">
+                    {doctorProfile.avatarUrl && (
+                      <img src={doctorProfile.avatarUrl} alt="Doctor" className="w-16 h-16 rounded-full object-cover border border-gray-200" />
+                    )}
+                    <div className="text-sm">
+                      <p className="font-bold text-gray-900">{doctorProfile.name}</p>
+                      <p className="text-gray-600 italic">{doctorProfile.specialty}</p>
+                      {doctorProfile.customFields && doctorProfile.customFields.length > 0 && (
+                        <div className="mt-2 space-y-0.5 text-xs text-gray-600">
+                          {doctorProfile.customFields.filter(f => f.value).map((f, i) => (
+                            <p key={i}>{f.label}: {f.value}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <img src="/footer_qr.jpg" alt="Info" className="w-24 h-24 object-contain mb-1" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  </div>
+                </div>
+
+              </div>
+            </main>
+
+            {/* Template pages for print — each on separate page */}
+            {attachedTemplates.map((at, idx) => (
+              <div key={at.templateId + idx} className="hidden print:block" style={{ pageBreakBefore: 'always' }}>
+                {/* Header image */}
+                <div className="mb-4">
+                  <img src="/header.jpg" alt="Header" className="w-full h-auto object-contain max-h-[150px]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                </div>
+
+                {/* Greeting */}
+                <div className="text-center mb-6 border-b pb-4">
+                  <h2 className="text-xl font-bold text-gray-900 uppercase tracking-widest mb-2">{at.name}</h2>
+                  <p className="text-sm text-gray-700">
+                    Уважаемый наш пациент, <strong>{result.patientName || 'пациент'}</strong>, ниже приведены <strong>{at.headerText}</strong> для вас.
+                  </p>
+                </div>
+
+                {/* Content */}
+                {at.content && (
+                  <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed mb-6">
+                    {at.content}
+                  </div>
+                )}
+
+                {/* Images */}
+                {at.images.length > 0 && (
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    {at.images.map(img => (
+                      <div key={img.id} className="text-center">
+                        <img
+                          src={img.data}
+                          alt={img.caption || ''}
+                          className="w-full max-h-[250px] object-contain rounded border"
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        {img.caption && <p className="text-xs text-gray-500 mt-1 italic">{img.caption}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Footer */}
+                <div className="flex flex-row justify-between items-end mt-8 pt-4 border-t border-gray-300">
+                  <div className="flex items-start gap-4">
+                    {doctorProfile.avatarUrl && (
+                      <img src={doctorProfile.avatarUrl} alt="Doctor" className="w-16 h-16 rounded-full object-cover border border-gray-200" />
+                    )}
+                    <div className="text-sm">
+                      <p className="font-bold text-gray-900">{doctorProfile.name}</p>
+                      <p className="text-gray-600 italic">{doctorProfile.specialty}</p>
+                      {doctorProfile.customFields && doctorProfile.customFields.length > 0 && (
+                        <div className="mt-2 space-y-0.5 text-xs text-gray-600">
+                          {doctorProfile.customFields.filter(f => f.value).map((f, i) => (
+                            <p key={i}>{f.label}: {f.value}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <img src="/footer_qr.jpg" alt="Info" className="w-24 h-24 object-contain mb-1" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  </div>
                 </div>
               </div>
+            ))}
 
-            </div>
-          </main>
+            {/* Coupon page for print */}
+            {showCoupons && (
+              <CouponPage doctorName={doctorProfile.name} />
+            )}
+          </>
+        )}
+
+        {/* Template Selector Modal */}
+        {isTemplateSelectorOpen && (
+          <TemplateSelector
+            templates={getTemplates(userLogin)}
+            patientName={result?.patientName || ''}
+            onAttach={(newAttached) => {
+              setAttachedTemplates(prev => [...prev, ...newAttached]);
+              setIsTemplateSelectorOpen(false);
+            }}
+            onClose={() => setIsTemplateSelectorOpen(false)}
+          />
         )}
       </div>
     </div>
