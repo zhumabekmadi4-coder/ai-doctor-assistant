@@ -363,6 +363,10 @@ function HomeContent() {
             <div className="p-6 bg-blue-50 border-b border-blue-100 flex justify-between items-center print:hidden">
               <h2 className="text-lg font-semibold text-blue-800">Результаты анализа</h2>
               <div className="flex gap-2">
+                <button onClick={() => { setResult(null); resetRecording(); }} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1">
+                  <Mic className="w-4 h-4" />
+                  Новый пациент
+                </button>
                 <button onClick={() => setResult(null)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">
                   Назад
                 </button>
@@ -441,12 +445,12 @@ function HomeContent() {
               </div>
 
               {/* Procedures */}
-              <div className="space-y-4 print:mt-6">
+              <div className="space-y-1 print:mt-4">
                 <h3 className="font-bold text-gray-900 uppercase text-xs tracking-wider border-b pb-1">План Лечения (Процедуры)</h3>
-                <div className="grid grid-cols-1 gap-1">
+                <div className="grid grid-cols-1 gap-0">
                   {result.procedures?.map((proc, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg print:p-0 print:hover:bg-transparent print:py-1">
-                      <span className="text-gray-800 print:text-black text-sm">{proc.name}</span>
+                    <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg print:p-0 print:hover:bg-transparent print:py-0.5 print:border-b print:border-gray-100">
+                      <span className="text-gray-800 print:text-black text-sm print:text-xs">{proc.name}</span>
                       <div className="flex items-center gap-2">
                         <div className="flex items-center">
                           <input
@@ -455,12 +459,12 @@ function HomeContent() {
                             value={proc.quantity || ''}
                             onChange={(e) => updateProcedure(idx, parseInt(e.target.value) || 0)}
                             className={`w-16 p-1 border rounded text-right focus:ring-blue-500 focus:border-blue-500 
-                              print:border-none print:w-auto print:text-right print:font-bold 
+                              print:border-none print:w-auto print:text-right print:font-bold print:text-xs
                               ${proc.quantity > 0 ? 'print:text-black' : 'print:text-transparent'}`}
                             placeholder="0"
                           />
                           <span className="text-sm text-gray-500 ml-1 print:hidden">сеанс(ов)</span>
-                          <span className={`hidden print:inline ml-1 text-sm ${proc.quantity > 0 ? 'text-black' : 'text-transparent'}`}>сеанс(ов)</span>
+                          <span className={`hidden print:inline ml-1 text-xs ${proc.quantity > 0 ? 'text-black' : 'text-transparent'}`}>сеанс(ов)</span>
                         </div>
                       </div>
                     </div>
