@@ -25,7 +25,7 @@ export async function POST(req: Request) {
         });
 
         const text = transcription.text;
-        console.log('[API] Transcription:', text.slice(0, 100) + '...');
+        console.log(`[API] Transcription complete, length: ${text.length} chars`);
 
         // 2. Analyze with GPT-4o
         const completion = await openai.chat.completions.create({

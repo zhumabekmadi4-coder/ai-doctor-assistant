@@ -1,6 +1,7 @@
 
 import { getSheets, SPREADSHEET_ID } from '@/lib/google-sheets';
 import { NextResponse } from 'next/server';
+import { getClinicIdForUser, hasCredits, decrementCredit } from '@/lib/clinic';
 
 export async function POST(req: Request) {
     try {
@@ -22,6 +23,27 @@ export async function POST(req: Request) {
             throw new Error('Missing SPREADSHEET_ID');
         }
 
+        // Check clinic credits before saving
+        const doctorLogin = body.doctorLogin || '';
+        let clinicSheetId: string | null = null;
+
+        if (doctorLogin) {
+            clinicSheetId = await getClinicIdForUser(SPREADSHEET_ID, doctorLogin);
+
+            if (clinicSheetId) {
+                const canSave = await hasCredits(clinicSheetId);
+                if (!canSave) {
+                    return NextResponse.json(
+                        { error: 'Кредиты консультаций закончились. Обратитесь к администратору.' },
+                        { status: 403 }
+                    );
+                }
+            }
+        }
+
+        // Determine target sheet: clinic's own sheet or main sheet
+        const targetSheetId = clinicSheetId || SPREADSHEET_ID;
+
         // Prepare row data
         const values = [
             [
@@ -39,21 +61,33 @@ export async function POST(req: Request) {
             ]
         ];
 
-        // Append to first sheet — try 'Лист1' for Russian locale, fallback approach
+        // Append to first sheet
         const response = await sheets.spreadsheets.values.append({
-            spreadsheetId: SPREADSHEET_ID,
-            range: 'A1', // Using just A1 targets the first sheet regardless of name
+            spreadsheetId: targetSheetId,
+            range: 'A1',
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values,
             },
         });
 
-        return NextResponse.json({ success: true, data: response.data });
+        // Decrement credit after successful save
+        let remainingCredits = -1;
+        if (clinicSheetId) {
+            remainingCredits = await decrementCredit(clinicSheetId);
+        }
 
-    } catch (error: any) {
+        return NextResponse.json({
+            success: true,
+            data: response.data,
+            remainingCredits,
+        });
+
+    } catch (error: unknown) {
         console.error('[API] Sheets Error Details:', error);
-        const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
+        const errorMessage = error instanceof Error
+            ? error.message
+            : 'Unknown error';
         return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 }

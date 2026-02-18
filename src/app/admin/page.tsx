@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Plus, Trash2, RefreshCw, ArrowLeft, Shield, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Plus, Trash2, RefreshCw, ArrowLeft, Shield, Eye, EyeOff, CheckCircle, XCircle, CreditCard } from 'lucide-react';
 
 interface User {
     rowIndex: number;
@@ -22,6 +22,9 @@ export default function AdminPage() {
     const [submitting, setSubmitting] = useState(false);
     const [successMsg, setSuccessMsg] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+
+    // Credits state
+    const [credits, setCredits] = useState<{ remaining: number; total: number; used: number; clinicName: string; unlimited: boolean } | null>(null);
 
     const [form, setForm] = useState({
         login: '',
@@ -63,6 +66,29 @@ export default function AdminPage() {
     useEffect(() => {
         loadUsers();
     }, [loadUsers]);
+
+    // Load credits on mount
+    useEffect(() => {
+        const session = localStorage.getItem('doctorSession');
+        if (!session) return;
+        try {
+            const parsed = JSON.parse(session);
+            fetch(`/api/credits?login=${encodeURIComponent(parsed.login)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.error) {
+                        setCredits({
+                            remaining: data.remainingCredits,
+                            total: data.totalCredits,
+                            used: data.usedCredits,
+                            clinicName: data.clinicName,
+                            unlimited: data.unlimited || false,
+                        });
+                    }
+                })
+                .catch(() => { });
+        } catch { }
+    }, []);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -163,6 +189,57 @@ export default function AdminPage() {
                     <div className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-3 rounded-xl border border-red-100">
                         <XCircle className="w-5 h-5 flex-shrink-0" />
                         {error}
+                    </div>
+                )}
+
+                {/* Credits Card */}
+                {credits && !credits.unlimited && (
+                    <div className={`rounded-2xl shadow-sm border p-6 ${credits.remaining <= 0 ? 'bg-red-50 border-red-200' :
+                            credits.remaining < 10 ? 'bg-amber-50 border-amber-200' :
+                                'bg-white border-gray-200'
+                        }`}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${credits.remaining <= 0 ? 'bg-red-600' :
+                                        credits.remaining < 10 ? 'bg-amber-500' :
+                                            'bg-emerald-600'
+                                    }`}>
+                                    <CreditCard className="w-5 h-5 text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-gray-900">Консультации</h3>
+                                    <p className="text-xs text-gray-500">{credits.clinicName}</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <p className={`text-3xl font-bold ${credits.remaining <= 0 ? 'text-red-600' :
+                                        credits.remaining < 10 ? 'text-amber-600' :
+                                            'text-emerald-600'
+                                    }`}>
+                                    {credits.remaining}
+                                </p>
+                                <p className="text-xs text-gray-500">из {credits.total} осталось</p>
+                            </div>
+                        </div>
+                        {credits.remaining <= 0 && (
+                            <div className="mt-3 px-3 py-2 bg-red-100 rounded-lg text-sm text-red-700 font-medium">
+                                ⚠️ Кредиты закончились. Врачи не могут сохранять консультации.
+                            </div>
+                        )}
+                        {credits.remaining > 0 && credits.remaining < 10 && (
+                            <div className="mt-3 px-3 py-2 bg-amber-100 rounded-lg text-sm text-amber-700">
+                                Осталось мало кредитов. Пополните баланс.
+                            </div>
+                        )}
+                        <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
+                            <div
+                                className={`h-2 rounded-full transition-all ${credits.remaining <= 0 ? 'bg-red-500' :
+                                        credits.remaining < 10 ? 'bg-amber-500' :
+                                            'bg-emerald-500'
+                                    }`}
+                                style={{ width: `${Math.max(0, Math.min(100, (credits.remaining / credits.total) * 100))}%` }}
+                            />
+                        </div>
                     </div>
                 )}
 

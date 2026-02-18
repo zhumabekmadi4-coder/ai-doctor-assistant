@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
-import { Mic, Square, Save, FileText, Loader2, Printer, Edit2, LogOut, Users, QrCode, Shield, LayoutTemplate, Plus, X, ArrowLeft } from 'lucide-react';
+import { Mic, Square, Save, FileText, Loader2, Printer, Edit2, LogOut, Users, QrCode, Shield, LayoutTemplate, Plus, X, ArrowLeft, CreditCard } from 'lucide-react';
 import { DoctorProfileModal, CustomField } from '@/components/DoctorProfileModal';
 import { LoginScreen } from '@/components/LoginScreen';
 import { QRModal } from '@/components/QRModal';
@@ -79,6 +79,7 @@ function HomeContent() {
   const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
   const [attachedTemplates, setAttachedTemplates] = useState<AttachedTemplate[]>([]);
   const [showCoupons, setShowCoupons] = useState(false);
+  const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfile>({
     name: '',
     specialty: '',
@@ -98,7 +99,18 @@ function HomeContent() {
         const specialty = parsed.specialty || '';
         const role = parsed.role || 'doctor';
         if (role) setUserRole(role);
-        if (login) setUserLogin(login);
+        if (login) {
+          setUserLogin(login);
+          // Fetch credits
+          fetch(`/api/credits?login=${encodeURIComponent(login)}`)
+            .then(r => r.json())
+            .then(data => {
+              if (!data.error && !data.unlimited) {
+                setRemainingCredits(data.remainingCredits);
+              }
+            })
+            .catch(() => { });
+        }
 
         // Load per-user profile, fallback to account data
         const profileKey = `doctorProfile_${login}`;
@@ -206,7 +218,8 @@ function HomeContent() {
     const dataToSave = {
       ...result,
       treatment: `${result.treatment}\n\nПроцедуры: ${proceduresText}`,
-      doctor: doctorProfile
+      doctor: doctorProfile,
+      doctorLogin: userLogin,
     };
     try {
       const response = await fetch('/api/save', {
@@ -215,10 +228,18 @@ function HomeContent() {
         body: JSON.stringify(dataToSave),
       });
       const data = await response.json();
+      if (response.status === 403) {
+        alert('⚠️ ' + (data.error || 'Кредиты консультаций закончились.'));
+        return;
+      }
       if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
-      alert('Данные успешно сохранены в Google Таблицу!');
-    } catch (error: any) {
-      alert(`Ошибка сохранения: ${error.message}`);
+      const creditsMsg = data.remainingCredits >= 0
+        ? `\nОсталось консультаций: ${data.remainingCredits}`
+        : '';
+      alert('Данные успешно сохранены в Google Таблицу!' + creditsMsg);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Ошибка сохранения: ${msg}`);
     }
   };
 
@@ -312,6 +333,15 @@ function HomeContent() {
                 <span className="font-medium block leading-none text-gray-900">{doctorProfile.name}</span>
                 <span className="text-xs text-gray-500">{doctorProfile.specialty}</span>
               </div>
+              {remainingCredits !== null && (
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${remainingCredits <= 0 ? 'bg-red-100 text-red-700' :
+                    remainingCredits < 10 ? 'bg-amber-100 text-amber-700' :
+                      'bg-emerald-100 text-emerald-700'
+                  }`} title={`Осталось консультаций: ${remainingCredits}`}>
+                  <CreditCard className="w-3 h-3" />
+                  {remainingCredits}
+                </div>
+              )}
               <Edit2 className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
             </button>
             <button

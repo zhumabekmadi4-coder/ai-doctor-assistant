@@ -1,15 +1,23 @@
 import { getSheets, SPREADSHEET_ID } from '@/lib/google-sheets';
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
-
-function hashPassword(password: string): string {
-    return crypto.createHash('sha256').update(password).digest('hex');
-}
+import { hashPassword } from '@/lib/auth';
 
 // POST /api/setup-users — one-time setup to create Users sheet and admin account
-// Call this once after deployment: POST /api/setup-users
+// Requires env vars: ADMIN_LOGIN, ADMIN_PASSWORD, ADMIN_NAME, ADMIN_SPECIALTY
 export async function POST() {
     try {
+        const adminLogin = process.env.ADMIN_LOGIN;
+        const adminPassword = process.env.ADMIN_PASSWORD;
+        const adminName = process.env.ADMIN_NAME || 'Admin';
+        const adminSpecialty = process.env.ADMIN_SPECIALTY || '';
+
+        if (!adminLogin || !adminPassword) {
+            return NextResponse.json(
+                { error: 'Missing ADMIN_LOGIN or ADMIN_PASSWORD env vars' },
+                { status: 400 }
+            );
+        }
+
         const sheets = getSheets();
 
         // 1. Create the "Users" sheet if it doesn't exist
@@ -36,30 +44,30 @@ export async function POST() {
             });
         }
 
-        // 2. Add header row
+        // 2. Add header row (now with clinic_id column G)
         await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID!,
-            range: 'Users!A1:F1',
+            range: 'Users!A1:G1',
             valueInputOption: 'RAW',
             requestBody: {
-                values: [['login', 'password_hash', 'name', 'specialty', 'role', 'active']],
+                values: [['login', 'password_hash', 'name', 'specialty', 'role', 'active', 'clinic_id']],
             },
         });
 
-        // 3. Add admin user (zhuma_md / Ituteg777)
-        const adminHash = hashPassword('Ituteg777');
+        // 3. Add admin user from env vars
+        const adminHash = hashPassword(adminPassword);
         await sheets.spreadsheets.values.append({
             spreadsheetId: SPREADSHEET_ID!,
-            range: 'Users!A:F',
+            range: 'Users!A:G',
             valueInputOption: 'RAW',
             requestBody: {
-                values: [['zhuma_md', adminHash, 'Мади Жума', 'Невролог', 'admin', 'true']],
+                values: [[adminLogin, adminHash, adminName, adminSpecialty, 'admin', 'true', SPREADSHEET_ID || '']],
             },
         });
 
         return NextResponse.json({
             success: true,
-            message: 'Users sheet created. Admin: zhuma_md / Ituteg777',
+            message: `Users sheet created. Admin: ${adminLogin}`,
         });
     } catch (err) {
         console.error('Setup error:', err);
