@@ -1,17 +1,8 @@
-
 import { getOpenAI } from '@/lib/openai';
 import { NextResponse } from 'next/server';
 
-// Increase body size limit for audio uploads (default is 4.5MB on Vercel)
-export const config = {
-    api: {
-        bodyParser: {
-            sizeLimit: '25mb',
-        },
-    },
-};
-
-// Increase max execution time for Whisper transcription
+// App Router: use nodejs runtime for large file uploads
+export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
