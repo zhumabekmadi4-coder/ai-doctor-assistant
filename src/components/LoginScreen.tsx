@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Stethoscope, Eye, EyeOff } from 'lucide-react';
 
 interface LoginScreenProps {
-    onLogin: (username: string, role: string, name: string) => void;
+    onLogin: (username: string, role: string, name: string, specialty: string) => void;
 }
 
 export function LoginScreen({ onLogin }: LoginScreenProps) {
@@ -39,13 +39,15 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
             // Save session to localStorage
             localStorage.setItem('doctorSession', JSON.stringify({
+                login: data.user.login,
                 username: data.user.login,
                 name: data.user.name,
+                specialty: data.user.specialty || '',
                 role: data.user.role,
                 loginTime: new Date().toISOString(),
             }));
 
-            onLogin(data.user.login, data.user.role, data.user.name);
+            onLogin(data.user.login, data.user.role, data.user.name, data.user.specialty || '');
         } catch {
             setError('Ошибка соединения. Попробуйте снова.');
         } finally {

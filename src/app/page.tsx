@@ -69,11 +69,12 @@ function HomeContent() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState('doctor');
+  const [userLogin, setUserLogin] = useState('');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isQROpen, setIsQROpen] = useState(false);
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfile>({
-    name: 'Др. Жума',
-    specialty: 'Невролог',
+    name: '',
+    specialty: '',
     license: ''
   });
 
@@ -85,14 +86,24 @@ function HomeContent() {
       setIsLoggedIn(true);
       try {
         const parsed = JSON.parse(session);
-        if (parsed.role) setUserRole(parsed.role);
-        if (parsed.name) setDoctorProfile(prev => ({ ...prev, name: parsed.name }));
+        const login = parsed.login || '';
+        const name = parsed.name || '';
+        const specialty = parsed.specialty || '';
+        const role = parsed.role || 'doctor';
+        if (role) setUserRole(role);
+        if (login) setUserLogin(login);
+
+        // Load per-user profile, fallback to account data
+        const profileKey = `doctorProfile_${login}`;
+        const saved = localStorage.getItem(profileKey);
+        if (saved) {
+          setDoctorProfile(JSON.parse(saved));
+        } else {
+          // First login — pre-populate from account
+          setDoctorProfile(prev => ({ ...prev, name, specialty }));
+        }
       } catch { }
     }
-
-    // Doctor profile
-    const saved = localStorage.getItem('doctorProfile');
-    if (saved) setDoctorProfile(JSON.parse(saved));
 
     // Patient reopened from patients list
     const patientRaw = sessionStorage.getItem('openPatient');
@@ -135,16 +146,26 @@ function HomeContent() {
   };
 
   if (!isLoggedIn) {
-    return <LoginScreen onLogin={(username, role, name) => {
+    return <LoginScreen onLogin={(username, role, name, specialty) => {
       setIsLoggedIn(true);
       setUserRole(role);
-      if (name) setDoctorProfile(prev => ({ ...prev, name }));
+      setUserLogin(username);
+      // Load per-user profile or init from account data
+      const profileKey = `doctorProfile_${username}`;
+      const saved = localStorage.getItem(profileKey);
+      if (saved) {
+        setDoctorProfile(JSON.parse(saved));
+      } else {
+        setDoctorProfile(prev => ({ ...prev, name: name || '', specialty: specialty || '' }));
+      }
     }} />;
   }
 
   const handleSaveProfile = (newProfile: DoctorProfile) => {
     setDoctorProfile(newProfile);
-    localStorage.setItem('doctorProfile', JSON.stringify(newProfile));
+    if (userLogin) {
+      localStorage.setItem(`doctorProfile_${userLogin}`, JSON.stringify(newProfile));
+    }
     setIsProfileOpen(false);
   };
 
