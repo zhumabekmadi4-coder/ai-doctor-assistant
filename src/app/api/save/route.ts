@@ -1,9 +1,10 @@
 
-import { sheets, SPREADSHEET_ID } from '@/lib/google-sheets';
+import { getSheets, SPREADSHEET_ID } from '@/lib/google-sheets';
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
     try {
+        const sheets = getSheets();
         const body = await req.json();
         const {
             patientName,

@@ -1,10 +1,10 @@
 
-import { openai } from '@/lib/openai';
+import { getOpenAI } from '@/lib/openai';
 import { NextResponse } from 'next/server';
-import { Readable } from 'stream';
 
 export async function POST(req: Request) {
     try {
+        const openai = getOpenAI();
         const formData = await req.formData();
         const audioFile = formData.get('audio') as File;
 
