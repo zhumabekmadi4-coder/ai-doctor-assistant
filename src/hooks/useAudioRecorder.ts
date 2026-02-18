@@ -10,7 +10,18 @@ export function useAudioRecorder() {
     const startRecording = useCallback(async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(stream);
+
+            // Use opus at 32kbps — speech quality, ~7MB for 30 min (vs ~100MB default)
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                ? 'audio/webm;codecs=opus'
+                : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+                    ? 'audio/ogg;codecs=opus'
+                    : 'audio/webm';
+
+            const mediaRecorder = new MediaRecorder(stream, {
+                mimeType,
+                audioBitsPerSecond: 16000, // 16kbps — Whisper handles speech fine, ~3.6MB for 30 min
+            });
             mediaRecorderRef.current = mediaRecorder;
             chunksRef.current = [];
 
@@ -21,7 +32,8 @@ export function useAudioRecorder() {
             };
 
             mediaRecorder.onstop = () => {
-                const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                const blob = new Blob(chunksRef.current, { type: mimeType });
+                console.log(`[Recorder] Audio size: ${(blob.size / 1024 / 1024).toFixed(2)}MB, codec: ${mimeType}`);
                 setAudioBlob(blob);
                 chunksRef.current = [];
             };
