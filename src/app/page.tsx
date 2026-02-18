@@ -203,9 +203,9 @@ function HomeContent() {
 
       <div className="max-w-4xl mx-auto space-y-8 print:w-[210mm] print:max-w-none print:space-y-4 print:mx-auto">
 
-        {/* Header - Print Only */}
+        {/* Header - Print Only — only shown if header.jpg is uploaded to /public */}
         <div className="hidden print:block mb-6">
-          <img src="/header.jpg" alt="Header" className="w-full h-auto object-contain max-h-[150px]" />
+          <img src="/header.jpg" alt="Header" className="w-full h-auto object-contain max-h-[150px]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
         </div>
 
         {/* Header - Screen Only */}
@@ -452,7 +452,7 @@ function HomeContent() {
                   </div>
                 </div>
                 <div className="flex flex-col items-center">
-                  <img src="/footer_qr.jpg" alt="Info" className="w-24 h-24 object-contain mb-1" />
+                  <img src="/footer_qr.jpg" alt="Info" className="w-24 h-24 object-contain mb-1" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                 </div>
               </div>
 
