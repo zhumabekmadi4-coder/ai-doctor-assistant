@@ -1,10 +1,12 @@
 import { getSheets, SPREADSHEET_ID } from '@/lib/google-sheets';
 import { NextResponse } from 'next/server';
-import { hashPassword } from '@/lib/auth';
-
+import { hashPassword, requireAdmin } from '@/lib/auth';
 
 // GET /api/users — list all users (admin only)
-export async function GET() {
+export async function GET(req: Request) {
+    const auth = requireAdmin(req);
+    if (auth instanceof Response) return auth;
+
     try {
         const sheets = getSheets();
         const response = await sheets.spreadsheets.values.get({
@@ -14,7 +16,7 @@ export async function GET() {
 
         const rows = response.data.values || [];
         const users = rows.slice(1).map((row, index) => ({
-            rowIndex: index + 2, // 1-based, skip header
+            rowIndex: index + 2,
             login: row[0] || '',
             name: row[2] || '',
             specialty: row[3] || '',
@@ -31,6 +33,9 @@ export async function GET() {
 
 // POST /api/users — create new user (admin only)
 export async function POST(req: Request) {
+    const auth = requireAdmin(req);
+    if (auth instanceof Response) return auth;
+
     try {
         const { login, password, name, specialty, role } = await req.json();
 
@@ -39,7 +44,7 @@ export async function POST(req: Request) {
         }
 
         const sheets = getSheets();
-        const passwordHash = hashPassword(password);
+        const passwordHash = await hashPassword(password);
 
         await sheets.spreadsheets.values.append({
             spreadsheetId: SPREADSHEET_ID!,
@@ -57,15 +62,17 @@ export async function POST(req: Request) {
     }
 }
 
-// DELETE /api/users — deactivate user by login
+// DELETE /api/users — deactivate user by login (admin only)
 export async function DELETE(req: Request) {
+    const auth = requireAdmin(req);
+    if (auth instanceof Response) return auth;
+
     try {
         const { login } = await req.json();
         if (!login) return NextResponse.json({ error: 'Missing login' }, { status: 400 });
 
         const sheets = getSheets();
 
-        // Find the row
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID!,
             range: 'Users!A:F',
@@ -80,7 +87,6 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        // Set active = false (soft delete)
         await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID!,
             range: `Users!F${rowIndex + 1}`,

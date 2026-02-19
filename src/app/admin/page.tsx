@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Users, Plus, Trash2, RefreshCw, ArrowLeft, Shield, Eye, EyeOff, CheckCircle, XCircle, CreditCard } from 'lucide-react';
+import { authFetch } from '@/lib/client-auth';
 
 interface User {
     rowIndex: number;
@@ -51,7 +52,7 @@ export default function AdminPage() {
         setLoading(true);
         setError('');
         try {
-            const res = await fetch('/api/users');
+            const res = await authFetch('/api/users');
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
             setUsers(data.users);
@@ -73,7 +74,7 @@ export default function AdminPage() {
         if (!session) return;
         try {
             const parsed = JSON.parse(session);
-            fetch(`/api/credits?login=${encodeURIComponent(parsed.login)}`)
+            authFetch(`/api/credits?login=${encodeURIComponent(parsed.login)}`)
                 .then(r => r.json())
                 .then(data => {
                     if (!data.error) {
@@ -95,7 +96,7 @@ export default function AdminPage() {
         setSubmitting(true);
         setError('');
         try {
-            const res = await fetch('/api/users', {
+            const res = await authFetch('/api/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(form),
@@ -119,7 +120,7 @@ export default function AdminPage() {
     const handleDelete = async (login: string, name: string) => {
         if (!confirm(`Деактивировать аккаунт "${name}" (${login})?`)) return;
         try {
-            const res = await fetch('/api/users', {
+            const res = await authFetch('/api/users', {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ login }),
@@ -195,14 +196,14 @@ export default function AdminPage() {
                 {/* Credits Card */}
                 {credits && !credits.unlimited && (
                     <div className={`rounded-2xl shadow-sm border p-6 ${credits.remaining <= 0 ? 'bg-red-50 border-red-200' :
-                            credits.remaining < 10 ? 'bg-amber-50 border-amber-200' :
-                                'bg-white border-gray-200'
+                        credits.remaining < 10 ? 'bg-amber-50 border-amber-200' :
+                            'bg-white border-gray-200'
                         }`}>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${credits.remaining <= 0 ? 'bg-red-600' :
-                                        credits.remaining < 10 ? 'bg-amber-500' :
-                                            'bg-emerald-600'
+                                    credits.remaining < 10 ? 'bg-amber-500' :
+                                        'bg-emerald-600'
                                     }`}>
                                     <CreditCard className="w-5 h-5 text-white" />
                                 </div>
@@ -213,8 +214,8 @@ export default function AdminPage() {
                             </div>
                             <div className="text-right">
                                 <p className={`text-3xl font-bold ${credits.remaining <= 0 ? 'text-red-600' :
-                                        credits.remaining < 10 ? 'text-amber-600' :
-                                            'text-emerald-600'
+                                    credits.remaining < 10 ? 'text-amber-600' :
+                                        'text-emerald-600'
                                     }`}>
                                     {credits.remaining}
                                 </p>
@@ -234,8 +235,8 @@ export default function AdminPage() {
                         <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
                             <div
                                 className={`h-2 rounded-full transition-all ${credits.remaining <= 0 ? 'bg-red-500' :
-                                        credits.remaining < 10 ? 'bg-amber-500' :
-                                            'bg-emerald-500'
+                                    credits.remaining < 10 ? 'bg-amber-500' :
+                                        'bg-emerald-500'
                                     }`}
                                 style={{ width: `${Math.max(0, Math.min(100, (credits.remaining / credits.total) * 100))}%` }}
                             />

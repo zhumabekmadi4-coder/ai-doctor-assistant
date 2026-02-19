@@ -82,7 +82,7 @@ export default function MobilePage() {
                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                         <Mic className="w-8 h-8 text-blue-600" />
                     </div>
-                    <h1 className="text-xl font-bold text-gray-900">AI Doctor Assistant</h1>
+                    <h1 className="text-xl font-bold text-gray-900">JAZai Doc</h1>
                     <p className="text-sm text-gray-500 mt-1">Запись консультации с телефона</p>
                 </div>
 

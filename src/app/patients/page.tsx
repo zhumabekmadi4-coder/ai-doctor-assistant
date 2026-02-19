@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LoginScreen } from '@/components/LoginScreen';
-import { Search, ArrowLeft, User, Calendar, Stethoscope, ChevronDown, ChevronUp, Loader2, RefreshCw, ExternalLink } from 'lucide-react';
+import { Search, ArrowLeft, User, Calendar, Stethoscope, ChevronDown, ChevronUp, Loader2, RefreshCw, ExternalLink, Trash2 } from 'lucide-react';
+import { authFetch } from '@/lib/client-auth';
 
 interface Patient {
+    rowIndex?: number;
     id: number;
     patientName: string;
     dob: string;
@@ -43,13 +45,14 @@ export default function PatientsPage() {
         setIsLoading(true);
         setError('');
         try {
-            const res = await fetch('/api/patients');
+            const res = await authFetch('/api/patients');
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Ошибка загрузки');
             setPatients(data.patients);
             setFiltered(data.patients);
-        } catch (e: any) {
-            setError(e.message);
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : 'Неизвестная ошибка';
+            setError(msg);
         } finally {
             setIsLoading(false);
         }
@@ -65,6 +68,31 @@ export default function PatientsPage() {
             )
         );
     }, [search, patients]);
+
+    const handleDelete = async (e: React.MouseEvent, patient: Patient) => {
+        e.stopPropagation();
+        if (!confirm(`Вы уверены, что хотите удалить пациента "${patient.patientName}"?`)) return;
+
+        try {
+            const res = await authFetch('/api/patients', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rowIndex: patient.rowIndex }),
+            });
+
+            if (!res.ok) throw new Error('Не удалось удалить запись');
+
+            // Optimistic update
+            const newPatients = patients.filter(p => p.id !== patient.id);
+            setPatients(newPatients);
+            setFiltered(newPatients.filter(p =>
+                p.patientName.toLowerCase().includes(search.toLowerCase()) ||
+                p.diagnosis.toLowerCase().includes(search.toLowerCase())
+            ));
+        } catch (error) {
+            alert('Ошибка удаления: ' + error);
+        }
+    };
 
     if (!isLoggedIn) {
         return <LoginScreen onLogin={() => { setIsLoggedIn(true); fetchPatients(); }} />;
@@ -144,9 +172,12 @@ export default function PatientsPage() {
                         className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
                     >
                         {/* Card Header */}
-                        <button
-                            className="w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors"
+                        {/* Card Header */}
+                        <div
+                            className="w-full text-left px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors cursor-pointer"
                             onClick={() => setExpandedId(expandedId === patient.id ? null : patient.id)}
+                            role="button"
+                            tabIndex={0}
                         >
                             <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold flex-shrink-0">
                                 {patient.patientName.charAt(0) || '?'}
@@ -168,11 +199,21 @@ export default function PatientsPage() {
                                     )}
                                 </div>
                             </div>
-                            {expandedId === patient.id
-                                ? <ChevronUp className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                                : <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                            }
-                        </button>
+
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={(e) => handleDelete(e, patient)}
+                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Удалить запись"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                                {expandedId === patient.id
+                                    ? <ChevronUp className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                    : <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                                }
+                            </div>
+                        </div>
 
                         {/* Expanded Details */}
                         {expandedId === patient.id && (
@@ -209,8 +250,9 @@ export default function PatientsPage() {
                             </div>
                         )}
                     </div>
-                ))}
-            </div>
-        </div>
+                ))
+                }
+            </div >
+        </div >
     );
 }

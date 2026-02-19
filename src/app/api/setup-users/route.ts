@@ -44,7 +44,7 @@ export async function POST() {
             });
         }
 
-        // 2. Add header row (now with clinic_id column G)
+        // 2. Add header row
         await sheets.spreadsheets.values.update({
             spreadsheetId: SPREADSHEET_ID!,
             range: 'Users!A1:G1',
@@ -54,8 +54,8 @@ export async function POST() {
             },
         });
 
-        // 3. Add admin user from env vars
-        const adminHash = hashPassword(adminPassword);
+        // 3. Add admin user (bcrypt hash)
+        const adminHash = await hashPassword(adminPassword);
         await sheets.spreadsheets.values.append({
             spreadsheetId: SPREADSHEET_ID!,
             range: 'Users!A:G',

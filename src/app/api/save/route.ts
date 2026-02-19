@@ -2,8 +2,12 @@
 import { getSheets, SPREADSHEET_ID } from '@/lib/google-sheets';
 import { NextResponse } from 'next/server';
 import { getClinicIdForUser, hasCredits, decrementCredit } from '@/lib/clinic';
+import { requireAuth } from '@/lib/auth';
 
 export async function POST(req: Request) {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+
     try {
         const sheets = getSheets();
         const body = await req.json();
@@ -23,8 +27,8 @@ export async function POST(req: Request) {
             throw new Error('Missing SPREADSHEET_ID');
         }
 
-        // Check clinic credits before saving
-        const doctorLogin = body.doctorLogin || '';
+        // Use verified login from session token (not client-supplied)
+        const doctorLogin = auth.login;
         let clinicSheetId: string | null = null;
 
         if (doctorLogin) {
@@ -41,10 +45,8 @@ export async function POST(req: Request) {
             }
         }
 
-        // Determine target sheet: clinic's own sheet or main sheet
         const targetSheetId = clinicSheetId || SPREADSHEET_ID;
 
-        // Prepare row data
         const values = [
             [
                 patientName,
@@ -57,11 +59,10 @@ export async function POST(req: Request) {
                 recommendations,
                 doctor?.name || '',
                 doctor?.specialty || '',
-                new Date().toISOString() // Timestamp
+                new Date().toISOString()
             ]
         ];
 
-        // Append to first sheet
         const response = await sheets.spreadsheets.values.append({
             spreadsheetId: targetSheetId,
             range: 'A1',
@@ -71,7 +72,6 @@ export async function POST(req: Request) {
             },
         });
 
-        // Decrement credit after successful save
         let remainingCredits = -1;
         if (clinicSheetId) {
             remainingCredits = await decrementCredit(clinicSheetId);

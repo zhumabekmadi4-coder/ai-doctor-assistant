@@ -1,26 +1,28 @@
 
 import { getSheets, SPREADSHEET_ID } from '@/lib/google-sheets';
 import { NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(req: Request) {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+
     try {
         const sheets = getSheets();
         if (!SPREADSHEET_ID) {
             throw new Error('Missing SPREADSHEET_ID');
         }
 
-        // Read all rows from the first sheet
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SPREADSHEET_ID,
-            range: 'A:K', // Columns: name, dob, visitDate, complaints, anamnesis, diagnosis, treatment, recommendations, doctorName, doctorSpecialty, timestamp
+            range: 'A:K',
         });
 
         const rows = response.data.values || [];
 
-        // Map rows to patient objects (skip header row if present)
         const patients = rows
-            .filter(row => row[0] && row[0] !== 'ФИО пациента') // skip empty or header rows
             .map((row, index) => ({
+                rowIndex: index + 1, // 1-based index for Google Sheets
                 id: index,
                 patientName: row[0] || '',
                 dob: row[1] || '',
@@ -34,13 +36,54 @@ export async function GET() {
                 doctorSpecialty: row[9] || '',
                 savedAt: row[10] || '',
             }))
-            .reverse(); // Most recent first
+            .filter(p => p.patientName && p.patientName !== 'ФИО пациента')
+            .reverse();
 
         return NextResponse.json({ patients });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[API] Patients Error:', error);
-        const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         return NextResponse.json({ error: errorMessage }, { status: 500 });
+    }
+}
+
+export async function DELETE(req: Request) {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+
+    try {
+        const { rowIndex } = await req.json();
+
+        if (!rowIndex || typeof rowIndex !== 'number' || rowIndex < 2) {
+            return NextResponse.json({ error: 'Invalid rowIndex' }, { status: 400 });
+        }
+
+        const sheets = getSheets();
+        if (!SPREADSHEET_ID) throw new Error('Missing SPREADSHEET_ID');
+
+        // Delete the row (rowIndex - 1 because API is 0-indexed for start/end)
+        await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: SPREADSHEET_ID,
+            requestBody: {
+                requests: [
+                    {
+                        deleteDimension: {
+                            range: {
+                                sheetId: 0, // Assuming first sheet
+                                dimension: 'ROWS',
+                                startIndex: rowIndex - 1,
+                                endIndex: rowIndex,
+                            },
+                        },
+                    },
+                ],
+            },
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error: unknown) {
+        console.error('[API] Delete Patient Error:', error);
+        return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
     }
 }

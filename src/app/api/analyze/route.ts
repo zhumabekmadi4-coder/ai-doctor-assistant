@@ -1,11 +1,16 @@
 import { getOpenAI } from '@/lib/openai';
 import { NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth';
 
 // App Router: use nodejs runtime for large file uploads
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
+    // Auth guard
+    const authResult = requireAuth(req);
+    if (authResult instanceof Response) return authResult;
+
     try {
         const openai = getOpenAI();
         const formData = await req.formData();

@@ -1,9 +1,13 @@
 import { SPREADSHEET_ID } from '@/lib/google-sheets';
 import { getClinicCredits, getClinicIdForUser } from '@/lib/clinic';
 import { NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth';
 
 // GET /api/credits?login=username — returns credit balance for user's clinic
 export async function GET(req: Request) {
+    const auth = requireAuth(req);
+    if (auth instanceof Response) return auth;
+
     try {
         const { searchParams } = new URL(req.url);
         const login = searchParams.get('login');
@@ -16,11 +20,9 @@ export async function GET(req: Request) {
             throw new Error('Missing SPREADSHEET_ID');
         }
 
-        // Find clinic_id for the user
         const clinicId = await getClinicIdForUser(SPREADSHEET_ID, login);
 
         if (!clinicId) {
-            // No clinic assigned — unlimited mode (backward compatible)
             return NextResponse.json({
                 clinicName: 'Без клиники',
                 totalCredits: -1,
