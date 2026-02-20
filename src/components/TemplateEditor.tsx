@@ -6,7 +6,7 @@ import { X, Plus, Image as ImageIcon, Link, Trash2, Save, ArrowLeft } from 'luci
 
 interface TemplateEditorProps {
     template?: Template;
-    onSave: (data: Omit<Template, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => void;
+    onSave: (data: Partial<Template> & { name: string; headerText: string; content: string }) => void;
     onCancel: () => void;
 }
 
@@ -150,11 +150,11 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
                     {images.length > 0 && (
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                             {images.map(img => (
-                                <div key={img.id} className="relative group border rounded-lg overflow-hidden">
+                                <div key={img.id} className="relative group border rounded-lg overflow-hidden print:block">
                                     <img
                                         src={img.data}
                                         alt={img.caption || ''}
-                                        className="w-full h-32 object-cover"
+                                        className="w-full h-32 object-cover print:w-full print:h-auto print:max-h-[80vh] print:max-w-[calc(100%-20mm)]"
                                         onError={e => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23f3f4f6" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="%239ca3af" font-size="12">Ошибка</text></svg>'; }}
                                     />
                                     <button
@@ -168,7 +168,7 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
                                         value={img.caption || ''}
                                         onChange={e => updateCaption(img.id, e.target.value)}
                                         placeholder="Подпись..."
-                                        className="w-full px-2 py-1 text-xs border-t bg-white focus:outline-none focus:bg-blue-50"
+                                        className="w-full px-2 py-1 text-xs border-t bg-white focus:outline-none focus:bg-blue-50 print:block print:w-full"
                                     />
                                 </div>
                             ))}
@@ -240,9 +240,12 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
                             </p>
                             {content && <div className="text-sm text-gray-800 whitespace-pre-wrap">{content}</div>}
                             {images.length > 0 && (
-                                <div className="flex gap-2 flex-wrap mt-2">
+                                <div className="flex gap-2 flex-wrap mt-2 print:block print:space-y-4">
                                     {images.map(img => (
-                                        <img key={img.id} src={img.data} alt={img.caption || ''} className="h-16 rounded border object-cover" />
+                                        <div key={img.id} className="print:block">
+                                            <img src={img.data} alt={img.caption || ''} className="h-16 rounded border object-cover print:w-full print:max-h-[80vh] print:object-contain print:max-w-[calc(100%-20mm)]" />
+                                            {img.caption && <p className="text-xs text-gray-500 mt-1 italic print:block print:text-sm print:mt-2 print-text-wrap">{img.caption}</p>}
+                                        </div>
                                     ))}
                                 </div>
                             )}

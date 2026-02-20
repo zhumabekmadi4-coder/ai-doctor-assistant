@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LoginScreen } from '@/components/LoginScreen';
 import { TemplateEditor } from '@/components/TemplateEditor';
-import { getTemplates, saveTemplate, deleteTemplate, Template } from '@/lib/templates';
-import { ArrowLeft, Plus, Edit2, Trash2, FileText, Image as ImageIcon } from 'lucide-react';
+import { getTemplates, saveTemplate, deleteTemplate, Template, getAllPublicTemplates, getTemplatesByType, togglePublicStatus, isTemplateAuthor } from '@/lib/templates';
+import { ArrowLeft, Plus, Edit2, Trash2, FileText, Image as ImageIcon, Globe, Lock, User } from 'lucide-react';
 
 export default function TemplatesPage() {
     const router = useRouter();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userLogin, setUserLogin] = useState('');
+    const [activeTab, setActiveTab] = useState<'my' | 'public'>('my');
     const [templates, setTemplates] = useState<Template[]>([]);
     const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
     const [isCreating, setIsCreating] = useState(false);
@@ -24,13 +25,15 @@ export default function TemplatesPage() {
                 const login = parsed.login || '';
                 setIsLoggedIn(true);
                 setUserLogin(login);
-                setTemplates(getTemplates(login));
+                
+                // Загружаем шаблоны для активной вкладки
+                setTemplates(getTemplatesByType(login, activeTab));
             } catch { }
         }
-    }, []);
+    }, [activeTab]);
 
     const refreshTemplates = () => {
-        setTemplates(getTemplates(userLogin));
+        setTemplates(getTemplatesByType(userLogin, activeTab));
     };
 
     const handleSave = (data: Partial<Template> & { name: string; headerText: string; content: string }) => {
@@ -44,6 +47,14 @@ export default function TemplatesPage() {
         deleteTemplate(userLogin, id);
         refreshTemplates();
         setDeleteConfirm(null);
+    };
+
+    const handleTogglePublic = (templateId: string) => {
+        const updated = togglePublicStatus(userLogin, templateId);
+        if (updated) {
+            // Обновляем список
+            setTemplates(getTemplatesByType(userLogin, activeTab));
+        }
     };
 
     if (!isLoggedIn) {
@@ -97,6 +108,36 @@ export default function TemplatesPage() {
                         Новый шаблон
                     </button>
                 </header>
+
+                {/* Tabs Navigation */}
+                <div className="flex gap-1 border-b border-gray-200">
+                    <button
+                        onClick={() => setActiveTab('my')}
+                        className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+                            activeTab === 'my'
+                                ? 'text-teal-600 border-b-2 border-teal-600'
+                                : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                        Мои шаблоны
+                        <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-gray-100">
+                            {getTemplates(userLogin).length}
+                        </span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('public')}
+                        className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+                            activeTab === 'public'
+                                ? 'text-teal-600 border-b-2 border-teal-600'
+                                : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                        Общие шаблоны
+                        <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-gray-100">
+                            {getAllPublicTemplates().filter(t => t.authorLogin !== userLogin).length}
+                        </span>
+                    </button>
+                </div>
 
                 {/* Templates grid */}
                 {templates.length === 0 ? (
@@ -164,6 +205,20 @@ export default function TemplatesPage() {
                                             <span>{new Date(t.updatedAt).toLocaleDateString('ru-RU')}</span>
                                         </div>
                                         <div className="flex gap-1">
+                                            {/* Кнопка переключения публичности (только для своих шаблонов) */}
+                                            {activeTab === 'my' && (
+                                                <button
+                                                    onClick={() => handleTogglePublic(t.id)}
+                                                    className={`p-1.5 rounded-lg transition-colors ${
+                                                        t.isPublic
+                                                            ? 'text-teal-600 hover:text-teal-700 hover:bg-teal-50'
+                                                            : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'
+                                                    }`}
+                                                    title={t.isPublic ? 'Сделать приватным' : 'Сделать публичным'}
+                                                >
+                                                    {t.isPublic ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => setEditingTemplate(t)}
                                                 className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

@@ -16,6 +16,10 @@ export interface Template {
     images: TemplateImage[];
     createdAt: string;
     updatedAt: string;
+    // Новые поля:
+    isPublic: boolean;        // флаг общедоступности
+    authorLogin: string;      // логин создателя шаблона
+    authorName?: string;      // имя создателя для отображения
 }
 
 export interface AttachedTemplate {
@@ -75,6 +79,10 @@ export function saveTemplate(userLogin: string, template: Partial<Template> & { 
         images: template.images || [],
         createdAt: now,
         updatedAt: now,
+        // Новые поля по умолчанию:
+        isPublic: false,
+        authorLogin: userLogin,
+        authorName: userLogin, // можно улучшить, получив имя из сессии
     };
     templates.push(newTemplate);
     localStorage.setItem(storageKey(userLogin), JSON.stringify(templates));
@@ -95,4 +103,68 @@ export function toAttached(template: Template): AttachedTemplate {
         content: template.content,
         images: [...template.images],
     };
+}
+
+// Получить все общие шаблоны от всех врачей
+export function getAllPublicTemplates(): Template[] {
+    const allTemplates: Template[] = [];
+    
+    // Перебираем все ключи localStorage
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('templates_')) {
+            try {
+                const templates: Template[] = JSON.parse(localStorage.getItem(key) || '[]');
+                // Добавляем только публичные шаблоны
+                const publicTemplates = templates.filter(t => t.isPublic === true);
+                allTemplates.push(...publicTemplates);
+            } catch {
+                // Игнорируем ошибки парсинга
+            }
+        }
+    }
+    
+    return allTemplates;
+}
+
+// Получить шаблоны для конкретной вкладки
+export function getTemplatesByType(
+    userLogin: string,
+    type: 'my' | 'public'
+): Template[] {
+    if (type === 'my') {
+        // Возвращаем все шаблоны пользователя (личные + его общедоступные)
+        return getTemplates(userLogin);
+    } else {
+        // Возвращаем все общие шаблоны от всех пользователей
+        const allPublic = getAllPublicTemplates();
+        // Исключаем свои собственные шаблоны из списка общих
+        return allPublic.filter(t => t.authorLogin !== userLogin);
+    }
+}
+
+// Переключить статус публичности шаблона
+export function togglePublicStatus(
+    userLogin: string,
+    templateId: string
+): Template | null {
+    const templates = getTemplates(userLogin);
+    const idx = templates.findIndex(t => t.id === templateId);
+    
+    if (idx === -1) return null;
+    
+    // Переключаем статус
+    templates[idx].isPublic = !templates[idx].isPublic;
+    templates[idx].updatedAt = new Date().toISOString();
+    
+    localStorage.setItem(storageKey(userLogin), JSON.stringify(templates));
+    return templates[idx];
+}
+
+// Проверить, является ли пользователь автором шаблона
+export function isTemplateAuthor(
+    template: Template,
+    userLogin: string
+): boolean {
+    return template.authorLogin === userLogin;
 }

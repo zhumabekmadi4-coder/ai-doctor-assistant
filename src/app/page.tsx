@@ -61,6 +61,7 @@ interface DoctorProfile {
   specialty: string;
   license: string;
   avatarUrl?: string;
+  headerImageUrl?: string;
   experience?: string;
   whatsapp?: string;
   telegram?: string;
@@ -377,11 +378,16 @@ function HomeContent() {
 
         {/* ===== MAIN CONTENT ===== */}
         <main className="flex-1 p-4 sm:p-8 lg:p-12 overflow-x-hidden print:p-0 print:w-full print:m-0">
-          <div className="max-w-4xl mx-auto space-y-8 print:w-[210mm] print:max-w-none print:space-y-4 print:mx-auto">
+          <div className="max-w-4xl space-y-8 print:w-[210mm] print:max-w-none print:space-y-4">
 
-            {/* Print Header */}
-            <div className="hidden print:block mb-6">
-              <img src="/header.jpg" alt="Header" className="w-full h-auto object-contain max-h-[150px]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+            {/* Print Header - Only on first page (consultation sheet) */}
+            <div className="hidden print:block mb-4 print:pr-[20mm] print:pl-[30mm]">
+              <img
+                src={doctorProfile.headerImageUrl || "/header.jpg"}
+                alt="Header"
+                className="w-full h-auto object-contain max-h-[70px] print:w-[calc(100%-50mm)] print:max-w-[calc(100%-50mm)] print:ml-0"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
             </div>
 
             {/* User Back Button (Mobile/Tablet Only header equivalent) */}
@@ -459,7 +465,7 @@ function HomeContent() {
             {/* Results Form */}
             {result && (
               <>
-                <main className="glass-card-solid rounded-2xl overflow-hidden animate-fadeInUp print:shadow-none print:border-none print:bg-white shadow-sm border border-slate-200">
+                <main className="glass-card-solid rounded-2xl overflow-hidden animate-fadeInUp print:shadow-none print:bg-white shadow-sm border border-slate-200">
                   <div className="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center print:hidden">
                     <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                       <FileText className="w-5 h-5 text-teal-600" />
@@ -503,10 +509,10 @@ function HomeContent() {
                     </div>
                   </div>
 
-                  <div className="p-8 space-y-6 print:p-0 print:pr-[20mm] print:space-y-2 print:text-[11px] print:leading-tight">
-                    <div className="text-center mb-8 border-b pb-4 hidden print:block">
-                      <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-widest">Консультационный Лист</h1>
-                      <p className="text-gray-500 mt-1">{result.visitDate || new Date().toLocaleDateString('ru-RU')}</p>
+                  <div className="p-8 space-y-6 print:p-0 print:pl-0 print:pr-[20mm] print:space-y-2 print:text-[11px] print:leading-tight print-text-wrap">
+                    <div className="text-left mb-4 border-b pb-2 hidden print:block">
+                      <h1 className="text-lg font-bold text-gray-900 uppercase tracking-widest">Консультационный Лист</h1>
+                      <p className="text-gray-500 mt-1 text-sm">{result.visitDate || new Date().toLocaleDateString('ru-RU')}</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-6 print:gap-4 text-sm">
@@ -516,7 +522,7 @@ function HomeContent() {
                           type="text"
                           value={result.patientName}
                           onChange={(e) => setResult({ ...result, patientName: e.target.value })}
-                          className="w-full input-medical print:border-none print:p-0 print:text-lg print:font-semibold bg-slate-50/50 focus:bg-white"
+                          className="w-full input-medical print:p-0 print:text-lg print:font-semibold bg-slate-50/50 focus:bg-white"
                         />
                       </div>
                       <div className="space-y-1">
@@ -525,32 +531,32 @@ function HomeContent() {
                           type="text"
                           value={result.dob}
                           onChange={(e) => setResult({ ...result, dob: e.target.value })}
-                          className="w-full input-medical print:border-none print:p-0 print:text-lg bg-slate-50/50 focus:bg-white"
+                          className="w-full input-medical print:p-0 print:text-lg bg-slate-50/50 focus:bg-white"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-1 pt-2">
+                    <div className="space-y-1 pt-2 print:mb-4">
                       <label className="font-bold text-slate-700 block uppercase text-[10px] tracking-wider mb-1">Жалобы</label>
                       <textarea
-                        rows={2}
+                        rows={3}
                         value={result.complaints}
                         onChange={(e) => setResult({ ...result, complaints: e.target.value })}
-                        className="w-full input-medical print:border-none print:p-0 print:resize-none print:text-sm bg-slate-50/50 focus:bg-white"
+                        className="w-full input-medical print:p-0 print:resize-none print:text-sm bg-slate-50/50 focus:bg-white print:min-h-[80px] print-text-wrap"
                       />
                     </div>
 
-                    <div className="space-y-1">
+                    <div className="space-y-1 print:mb-4">
                       <label className="font-bold text-slate-700 block uppercase text-[10px] tracking-wider mb-1">Анамнез</label>
                       <textarea
                         rows={3}
                         value={result.anamnesis}
                         onChange={(e) => setResult({ ...result, anamnesis: e.target.value })}
-                        className="w-full input-medical print:border-none print:p-0 print:resize-none print:text-sm bg-slate-50/50 focus:bg-white"
+                        className="w-full input-medical print:p-0 print:resize-none print:text-sm bg-slate-50/50 focus:bg-white print:min-h-[80px] print-text-wrap"
                       />
                     </div>
 
-                    <div className="p-4 rounded-xl bg-teal-50/50 border border-teal-100 print:bg-transparent print:border-none print:p-0 print:mt-4">
+                    <div className="p-4 rounded-xl bg-teal-50/50 border border-teal-100 print:bg-transparent print:p-0 print:mt-4">
                       <label className="font-bold text-teal-800 block mb-2 uppercase text-[10px] tracking-wider">Предварительный диагноз</label>
                       <div className="print:hidden">
                         <input
@@ -560,33 +566,35 @@ function HomeContent() {
                           className="w-full input-medical font-bold text-lg text-slate-900 border-teal-200 focus:border-teal-500 bg-white"
                         />
                       </div>
-                      <div className="hidden print:block font-bold text-sm text-black">
+                      <div className="hidden print:block font-bold text-sm text-black print-text-wrap">
                         {result.diagnosis}
                       </div>
                     </div>
 
-                    {/* Procedures */}
-                    <div className="space-y-1 print:mt-4">
-                      <h3 className="font-bold text-slate-900 uppercase text-[10px] tracking-wider border-b pb-1 mb-2">План Лечения (Процедуры)</h3>
-                      <div className="grid grid-cols-1 gap-1 print:gap-0">
+                    {/* Procedures - Simple table layout aligned left */}
+                    <div className="print:mt-4 print:pr-[20mm]">
+                      <h3 className="font-bold text-slate-900 uppercase text-[10px] tracking-wider border-b pb-1 mb-2 text-left">План Лечения (Процедуры)</h3>
+                      <div className="w-full">
                         {result.procedures?.map((proc, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg print:p-0 print:hover:bg-transparent print:py-0 print:border-b print:border-gray-100 transition-colors w-full">
-                            <span className="text-slate-700 font-medium print:text-black text-sm print:text-[10px] truncate max-w-[70%]">{proc.name}</span>
-                            <div className="flex items-center gap-2 print:gap-1 ml-auto shrink-0">
-                              <div className="flex items-center">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={proc.quantity || ''}
-                                  onChange={(e) => updateProcedure(idx, parseInt(e.target.value) || 0)}
-                                  className={`w-16 p-1 border rounded text-right focus:ring-teal-500 focus:border-teal-500 
-                                  print:border-none print:w-8 print:h-auto print:text-right print:font-bold print:text-[10px] print:p-0 bg-white
-                                  ${proc.quantity > 0 ? 'print:text-black border-teal-200 text-teal-900 font-bold' : 'print:text-transparent border-slate-200 text-slate-400'}`}
-                                  placeholder="0"
-                                />
-                                <span className="text-sm text-slate-500 ml-2 print:hidden">сеанс(ов)</span>
-                                <span className={`hidden print:inline ml-1 text-[10px] whitespace-nowrap ${proc.quantity > 0 ? 'text-black' : 'text-transparent'}`}>сеанс.</span>
-                              </div>
+                          <div key={idx} className="flex items-start print:items-center w-full py-5 print:py-2.5 border-b print:border-gray-100">
+                            <div className="flex-1 text-left">
+                              <span className="text-slate-700 font-medium print:text-black text-sm print:text-[11px] print:leading-tight whitespace-nowrap">
+                                {proc.name}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 print:gap-0.5 ml-2 shrink-0">
+                              <input
+                                type="number"
+                                min="0"
+                                value={proc.quantity || ''}
+                                onChange={(e) => updateProcedure(idx, parseInt(e.target.value) || 0)}
+                                className={`w-10 p-1 border rounded text-right focus:ring-teal-500 focus:border-teal-500
+                                print:w-8 print:h-6 print:text-right print:font-bold print:text-[10px] print:p-0.5 bg-white
+                                ${proc.quantity > 0 ? 'print:text-black border-teal-200 text-teal-900 font-bold' : 'print:text-gray-400 border-slate-200 text-slate-400'}`}
+                                placeholder="0"
+                              />
+                              <span className="text-sm text-slate-500 ml-0.5 print:hidden">сеанс</span>
+                              <span className={`hidden print:inline text-[9px] whitespace-nowrap ${proc.quantity > 0 ? 'text-black' : 'text-gray-400'}`}>сеанс.</span>
                             </div>
                           </div>
                         ))}
@@ -599,7 +607,7 @@ function HomeContent() {
                         rows={3}
                         value={result.recommendations}
                         onChange={(e) => setResult({ ...result, recommendations: e.target.value })}
-                        className="w-full input-medical print:border-none print:p-0 print:resize-none print:text-sm bg-slate-50/50 focus:bg-white"
+                        className="w-full input-medical print:p-0 print:resize-none print:text-sm bg-slate-50/50 focus:bg-white print:min-h-[80px] print-text-wrap"
                       />
                     </div>
 
@@ -631,7 +639,7 @@ function HomeContent() {
                     <div className="hidden print:flex flex-row justify-between items-end mt-8 pt-8 border-t border-gray-300">
                       <div className="flex items-start gap-4">
                         {doctorProfile.avatarUrl && (
-                          <img src={doctorProfile.avatarUrl} alt="Doctor" className="w-16 h-16 rounded-full object-cover border border-gray-200" />
+                          <img src={doctorProfile.avatarUrl} alt="Doctor" className="w-16 h-16 rounded-full object-cover border border-gray-200 print:max-w-[calc(100%-20mm)]" />
                         )}
                         <div className="text-sm">
                           <p className="font-bold text-gray-900">{doctorProfile.name}</p>
@@ -646,7 +654,20 @@ function HomeContent() {
                         </div>
                       </div>
                       <div className="flex flex-col items-center">
-                        <img src="/footer_qr.jpg" alt="Info" className="w-24 h-24 object-contain mb-1" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        <img src="/footer_qr.jpg" alt="Info" className="w-24 h-24 object-contain mb-1 print:max-w-[calc(100%-20mm)]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      </div>
+                    </div>
+
+                    {/* JAZai branding - Print Only */}
+                    <div className="hidden print:block mt-12 pt-6 border-t border-gray-200">
+                      <div className="flex flex-col items-center">
+                        <div className="flex items-center gap-2 mb-2">
+                          <img src="/jazai-symbol.svg" alt="JAZai Logo" className="w-8 h-8" />
+                          <span className="font-bold text-lg text-gray-900">
+                            <span className="font-black">JAZ</span><span className="text-teal-500">ai</span> Doc
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 text-center">Сделано при помощи JAZai — интеллектуальный медицинский ассистент</p>
                       </div>
                     </div>
 
@@ -655,38 +676,35 @@ function HomeContent() {
 
                 {/* Template pages for print */}
                 {attachedTemplates.map((at, idx) => (
-                  <div key={at.templateId + idx} className="hidden print:block" style={{ pageBreakBefore: 'always' }}>
-                    {/* (Print Template Content - kept same) */}
-                    <div className="mb-4">
-                      <img src="/header.jpg" alt="Header" className="w-full h-auto object-contain max-h-[150px]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    </div>
-                    <div className="text-center mb-6 border-b pb-4">
-                      <h2 className="text-xl font-bold text-gray-900 uppercase tracking-widest mb-2">{at.name}</h2>
-                      <p className="text-sm text-gray-700">
+                  <div key={at.templateId + idx} className="hidden print:block print:pr-[20mm]" style={{ pageBreakBefore: 'always' }}>
+                    {/* No header on template pages - only consultation sheet has header */}
+                    <div className="text-left mb-4 border-b pb-2">
+                      <h2 className="text-lg font-bold text-gray-900 uppercase tracking-widest mb-1">{at.name}</h2>
+                      <p className="text-xs text-gray-700">
                         Уважаемый наш пациент, <strong>{result.patientName || 'пациент'}</strong>, ниже приведены <strong>{at.headerText}</strong> для вас.
                       </p>
                     </div>
                     {at.content && (
-                      <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed mb-6">
+                      <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed mb-4 print:mb-6">
                         {at.content}
                       </div>
                     )}
                     {at.images.length > 0 && (
-                      <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div className="mb-4 print:mb-6">
                         {at.images.map(img => (
-                          <div key={img.id} className="text-center">
+                          <div key={img.id} className="text-center mb-4 last:mb-0 print:mb-6 last:print:mb-0">
                             <img
                               src={img.data}
                               alt={img.caption || ''}
-                              className="w-full max-h-[250px] object-contain rounded border"
+                              className="w-full max-h-[80vh] object-contain rounded border print:max-w-[calc(100%-20mm)]"
                               onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                             />
-                            {img.caption && <p className="text-xs text-gray-500 mt-1 italic">{img.caption}</p>}
+                            {img.caption && <p className="text-xs text-gray-500 mt-1 italic print:mt-2 print-text-wrap">{img.caption}</p>}
                           </div>
                         ))}
                       </div>
                     )}
-                    <div className="flex flex-row justify-between items-end mt-8 pt-4 border-t border-gray-300">
+                    <div className="flex flex-row justify-between items-end mt-6 pt-4 border-t border-gray-300 print:mt-8 print:pt-4">
                       <div className="flex items-start gap-4">
                         {doctorProfile.avatarUrl && (
                           <img src={doctorProfile.avatarUrl} alt="Doctor" className="w-16 h-16 rounded-full object-cover border border-gray-200" />
@@ -704,7 +722,20 @@ function HomeContent() {
                         </div>
                       </div>
                       <div className="flex flex-col items-center">
-                        <img src="/footer_qr.jpg" alt="Info" className="w-24 h-24 object-contain mb-1" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        <img src="/footer_qr.jpg" alt="Info" className="w-24 h-24 object-contain mb-1 print:w-16 print:h-16 print:max-w-[calc(100%-20mm)]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      </div>
+                    </div>
+                    
+                    {/* JAZai branding for template pages - Print Only */}
+                    <div className="hidden print:block mt-8 pt-4 border-t border-gray-200">
+                      <div className="flex flex-col items-center">
+                        <div className="flex items-center gap-2 mb-2">
+                          <img src="/jazai-symbol.svg" alt="JAZai Logo" className="w-8 h-8" />
+                          <span className="font-bold text-base text-gray-900">
+                            <span className="font-black">JAZ</span><span className="text-teal-500">ai</span> Doc
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 text-center">Сделано при помощи JAZai — интеллектуальный медицинский ассистент</p>
                       </div>
                     </div>
                   </div>

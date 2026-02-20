@@ -12,6 +12,7 @@ export interface DoctorProfile {
     specialty: string;
     license: string;
     avatarUrl?: string;
+    headerImageUrl?: string;
     experience?: string;
     whatsapp?: string;
     telegram?: string;
@@ -88,6 +89,31 @@ export function DoctorProfileModal({ isOpen, onClose, onSave, initialProfile }: 
                                         const reader = new FileReader();
                                         reader.onloadend = () => {
                                             setProfile({ ...profile, avatarUrl: reader.result as string });
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }
+                                }}
+                                className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Header Image */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Изображение для хедера PDF</label>
+                        <div className="flex items-center gap-4">
+                            {profile.headerImageUrl && (
+                                <img src={profile.headerImageUrl} alt="Header" className="w-32 h-16 object-contain rounded border" />
+                            )}
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => {
+                                            setProfile({ ...profile, headerImageUrl: reader.result as string });
                                         };
                                         reader.readAsDataURL(file);
                                     }
