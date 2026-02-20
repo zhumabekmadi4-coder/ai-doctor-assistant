@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LoginScreen } from '@/components/LoginScreen';
 import { TemplateEditor } from '@/components/TemplateEditor';
-import { getTemplates, saveTemplate, deleteTemplate, Template, getAllPublicTemplates, getTemplatesByType, togglePublicStatus, isTemplateAuthor } from '@/lib/templates';
+import { getTemplates, saveTemplate, deleteTemplate, Template, getAllPublicTemplates, getTemplatesByType, togglePublicStatus, isTemplateAuthor, initializeDefaultTemplates } from '@/lib/templates';
 import { ArrowLeft, Plus, Edit2, Trash2, FileText, Image as ImageIcon, Globe, Lock, User } from 'lucide-react';
 
 export default function TemplatesPage() {
@@ -25,6 +25,9 @@ export default function TemplatesPage() {
                 const login = parsed.login || '';
                 setIsLoggedIn(true);
                 setUserLogin(login);
+                
+                // Инициализируем дефолтные шаблоны для новых пользователей
+                initializeDefaultTemplates(login);
                 
                 // Загружаем шаблоны для активной вкладки
                 setTemplates(getTemplatesByType(login, activeTab));

@@ -9,7 +9,7 @@ import { LoginScreen } from '@/components/LoginScreen';
 import { QRModal } from '@/components/QRModal';
 import { TemplateSelector } from '@/components/TemplateSelector';
 import { CouponPage } from '@/components/CouponPage';
-import { getTemplates, AttachedTemplate } from '@/lib/templates';
+import { getTemplates, AttachedTemplate, initializeDefaultTemplates } from '@/lib/templates';
 import { authFetch, clearSessionToken, getSessionToken } from '@/lib/client-auth';
 
 interface Procedure {
@@ -106,6 +106,10 @@ function HomeContent() {
         if (role) setUserRole(role);
         if (login) {
           setUserLogin(login);
+          
+          // Инициализируем дефолтные шаблоны для новых пользователей
+          initializeDefaultTemplates(login);
+          
           // Fetch credits
           authFetch(`/api/credits?login=${encodeURIComponent(login)}`)
             .then(async r => {
