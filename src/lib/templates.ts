@@ -201,7 +201,8 @@ export function isTemplateAuthor(
 export function initializeDefaultTemplates(userLogin: string): void {
     const existing = getTemplates(userLogin);
     
-    // Если у пользователя уже есть шаблоны, не добавляем дефолтные
+    // Если у пользователя уже есть шаблоны, НЕ добавляем дефолтные
+    // Это сохранит ваши существующие шаблоны!
     if (existing.length > 0) return;
     
     const now = new Date().toISOString();
