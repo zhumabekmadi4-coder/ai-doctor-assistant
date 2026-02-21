@@ -3,12 +3,13 @@
 import { useState, useRef } from 'react';
 import { Mic, Square, Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 
-type Status = 'idle' | 'recording' | 'sending' | 'done' | 'error';
+type Status = 'idle' | 'recording' | 'sending' | 'done' | 'saving' | 'saved' | 'error';
 
 export default function MobilePage() {
     const [status, setStatus] = useState<Status>('idle');
     const [errorMsg, setErrorMsg] = useState('');
     const [transcript, setTranscript] = useState('');
+    const [analysisData, setAnalysisData] = useState<any>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
 
@@ -71,8 +72,9 @@ export default function MobilePage() {
 
             const data = await response.json();
 
-            // Store result in sessionStorage for the main page to pick up
+            // Store result in sessionStorage for the main page to pick up (if on same device)
             sessionStorage.setItem('mobileAnalysis', JSON.stringify(data.analysis));
+            setAnalysisData(data.analysis);
             setTranscript(data.text || '');
             setStatus('done');
         } catch (err: any) {
@@ -81,10 +83,68 @@ export default function MobilePage() {
         }
     };
 
+    const savePatient = async () => {
+        if (!analysisData) return;
+        setStatus('saving');
+
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            const headers: HeadersInit = { 'Content-Type': 'application/json' };
+            if (token) headers['x-session-token'] = token;
+
+            const aiProcs = analysisData.procedures || {};
+            // Maps key to actual full procedure names matching DEFAULT_PROCEDURES map from page.tsx
+            const PROCEDURE_KEY_MAP: Record<string, string> = {
+                'HILT': 'HILT (высокоинтенсивная лазеротерапия)',
+                'SIS': 'SIS (высокоинтенсивная магнитотерапия)',
+                'УВТ': 'УВТ (Ударно-волновая терапия)',
+                'ИРТ': 'ИРТ (иглорефлексотерапия)',
+                'ВТЭС': 'ВТЭС (внутритканевая электростимуляция)',
+                'PRP': 'PRP (плазматерапия)',
+                'Кинезиотерапия': 'Кинезиотерапия',
+            };
+
+            const proceduresText = Object.keys(PROCEDURE_KEY_MAP)
+                .map(key => {
+                    const q = aiProcs[key] || 0;
+                    return q > 0 ? `${PROCEDURE_KEY_MAP[key]}: ${q}` : null;
+                })
+                .filter(Boolean)
+                .join(', ');
+
+            const treatment = proceduresText
+                ? `${analysisData.treatment || ''}\n\nПроцедуры: ${proceduresText}`
+                : (analysisData.treatment || '');
+
+            const dataToSave = {
+                ...analysisData,
+                treatment,
+            };
+
+            const response = await fetch('/api/save', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(dataToSave),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error || 'Ошибка при сохранении');
+            }
+
+            setStatus('saved');
+        } catch (err: any) {
+            setErrorMsg(err.message || 'Ошибка сохранения');
+            setStatus('error');
+        }
+    };
+
     const reset = () => {
         setStatus('idle');
         setErrorMsg('');
         setTranscript('');
+        setAnalysisData(null);
     };
 
     return (
@@ -146,19 +206,58 @@ export default function MobilePage() {
                 {status === 'done' && (
                     <div className="space-y-4">
                         <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
-                        <p className="text-green-700 font-semibold text-lg">Готово!</p>
+                        <p className="text-green-700 font-semibold text-lg">Анализ завершён!</p>
                         <p className="text-gray-600 text-sm">
-                            Результат сохранён. Откройте главную страницу на компьютере — данные появятся автоматически.
+                            Проверьте данные перед сохранением в базу.
                         </p>
-                        {transcript && (
-                            <div className="bg-gray-50 rounded-lg p-3 text-left">
-                                <p className="text-xs text-gray-500 font-medium mb-1">Транскрипция:</p>
-                                <p className="text-xs text-gray-700 line-clamp-4">{transcript}</p>
-                            </div>
-                        )}
+
+                        <div className="bg-gray-50 rounded-lg p-3 text-left space-y-2 max-h-60 overflow-y-auto">
+                            {analysisData?.patientName && <p className="text-sm font-semibold">Пациент: {analysisData.patientName}</p>}
+                            {analysisData?.diagnosis && <p className="text-xs text-gray-700"><span className="font-semibold">Диагноз:</span> {analysisData.diagnosis}</p>}
+                            {transcript && (
+                                <>
+                                    <p className="text-xs text-gray-500 font-medium mt-2">Транскрипция:</p>
+                                    <p className="text-xs text-gray-700">{transcript}</p>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="flex flex-col gap-2 pt-2">
+                            <button
+                                onClick={savePatient}
+                                className="w-full py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors shadow-lg shadow-green-500/30"
+                            >
+                                Сохранить пациента
+                            </button>
+                            <button
+                                onClick={reset}
+                                className="w-full py-3 border-2 border-gray-300 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                            >
+                                Отменить
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Status: saving */}
+                {status === 'saving' && (
+                    <div className="space-y-4">
+                        <Loader2 className="w-12 h-12 text-green-600 animate-spin mx-auto" />
+                        <p className="text-gray-600 font-medium">Сохраняем данные...</p>
+                    </div>
+                )}
+
+                {/* Status: saved */}
+                {status === 'saved' && (
+                    <div className="space-y-4">
+                        <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
+                        <p className="text-green-700 font-semibold text-lg">Успешно сохранено!</p>
+                        <p className="text-gray-600 text-sm">
+                            Пациент добавлен в список. Вы можете открыть его с компьютера.
+                        </p>
                         <button
                             onClick={reset}
-                            className="w-full py-3 border-2 border-blue-600 text-blue-600 rounded-xl font-semibold hover:bg-blue-50 transition-colors"
+                            className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors mt-4"
                         >
                             Новая запись
                         </button>

@@ -66,8 +66,6 @@ export function QRModal({ onClose }: QRModalProps) {
                     <canvas ref={canvasRef} className="rounded-lg" />
                 </div>
 
-                <p className="text-xs text-gray-400 break-all">{url}</p>
-
                 <div className="mt-4 flex items-center justify-center gap-2 text-xs text-blue-600">
                     <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
                     Ожидаем результат с телефона...
