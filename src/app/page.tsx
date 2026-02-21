@@ -106,10 +106,10 @@ function HomeContent() {
         if (role) setUserRole(role);
         if (login) {
           setUserLogin(login);
-          
+
           // Инициализируем дефолтные шаблоны для новых пользователей
           initializeDefaultTemplates(login);
-          
+
           // Fetch credits
           authFetch(`/api/credits?login=${encodeURIComponent(login)}`)
             .then(async r => {
@@ -153,6 +153,33 @@ function HomeContent() {
       sessionStorage.removeItem('openPatient');
       try {
         const p = JSON.parse(patientRaw);
+
+        // Extract procedures from treatment text if exists (e.g. "Процедуры: HILT: 5, УВТ: 3")
+        const loadedProcedures = DEFAULT_PROCEDURES.map(name => ({ name, quantity: 0 }));
+        if (p.treatment && p.treatment.includes('Процедуры:')) {
+          const parts = p.treatment.split('Процедуры:');
+          // The first part is the actual treatment text, the second is the procedures list
+          if (parts.length > 1) {
+            p.treatment = parts[0].trim(); // Restore just the treatment text
+
+            // Parse procedures: "HILT (высокоинтенсивная лазеротерапия): 5, УВТ (Ударно-волновая терапия): 3"
+            const procsString = parts[1];
+            const procItems = procsString.split(',').map((s: string) => s.trim());
+
+            procItems.forEach((item: string) => {
+              const match = item.match(/(.+):\s*(\d+)/);
+              if (match) {
+                const [, pName, pQuantity] = match;
+                // Find matching procedure in loadedProcedures
+                const existing = loadedProcedures.find(lp => lp.name === pName.trim());
+                if (existing) {
+                  existing.quantity = parseInt(pQuantity, 10);
+                }
+              }
+            });
+          }
+        }
+
         setResult({
           patientName: p.patientName || '',
           dob: p.dob || '',
@@ -162,7 +189,7 @@ function HomeContent() {
           diagnosis: p.diagnosis || '',
           treatment: p.treatment || '',
           recommendations: p.recommendations || '',
-          procedures: DEFAULT_PROCEDURES.map(name => ({ name, quantity: 0 })),
+          procedures: loadedProcedures,
         });
       } catch (e) {
         console.error('Failed to parse openPatient', e);
@@ -729,7 +756,7 @@ function HomeContent() {
                         <img src="/footer_qr.jpg" alt="Info" className="w-24 h-24 object-contain mb-1 print:w-16 print:h-16 print:max-w-[calc(100%-20mm)]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                       </div>
                     </div>
-                    
+
                     {/* JAZai branding for template pages - Print Only */}
                     <div className="hidden print:block mt-8 pt-4 border-t border-gray-200">
                       <div className="flex flex-col items-center">

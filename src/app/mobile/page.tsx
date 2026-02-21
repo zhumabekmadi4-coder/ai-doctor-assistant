@@ -49,12 +49,25 @@ export default function MobilePage() {
             const formData = new FormData();
             formData.append('audio', blob, 'recording.webm');
 
+            // Extract token from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+
+            const headers: HeadersInit = {};
+            if (token) {
+                headers['x-session-token'] = token;
+            }
+
             const response = await fetch('/api/analyze', {
                 method: 'POST',
+                headers,
                 body: formData,
             });
 
-            if (!response.ok) throw new Error('Ошибка анализа');
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error || 'Ошибка анализа (возможно не авторизован)');
+            }
 
             const data = await response.json();
 

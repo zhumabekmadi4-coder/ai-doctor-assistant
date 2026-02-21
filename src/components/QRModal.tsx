@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { X, Smartphone } from 'lucide-react';
+import { getSessionToken } from '@/lib/client-auth';
 
 interface QRModalProps {
     onClose: () => void;
@@ -13,8 +14,9 @@ export function QRModal({ onClose }: QRModalProps) {
     const [url, setUrl] = useState('');
 
     useEffect(() => {
-        // Build the mobile URL using current host
-        const mobileUrl = `${window.location.origin}/mobile`;
+        // Build the mobile URL using current host and pass auth token
+        const token = getSessionToken();
+        const mobileUrl = `${window.location.origin}/mobile${token ? `?token=${encodeURIComponent(token)}` : ''}`;
         setUrl(mobileUrl);
 
         if (canvasRef.current) {
