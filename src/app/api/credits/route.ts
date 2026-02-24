@@ -1,6 +1,6 @@
 import { sql } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth';
+import { requireAuth, requireAdmin } from '@/lib/auth';
 
 // GET /api/credits - returns credit balance
 export async function GET(req: Request) {
@@ -8,36 +8,36 @@ export async function GET(req: Request) {
     if (auth instanceof Response) return auth;
 
       try {
-          const rows = await sql`SELECT value FROM settings WHERE key = 'credits'`;
-              const credits = parseInt(rows[0]?.value ?? '0');
+          const rows = await sql`SELECT key, value FROM settings WHERE key IN ('credits', 'clinic_name')`;
+              const creditsRow = rows.find((r: any) => r.key === 'credits');
+                  const clinicRow = rows.find((r: any) => r.key === 'clinic_name');
+                      const credits = parseInt(creditsRow?.value ?? '0');
+                          const clinicName = clinicRow?.value ?? 'AI Doctor Clinic';
 
-                  const clinicRows = await sql`SELECT value FROM settings WHERE key = 'clinic_name'`;
-                      const clinicName = clinicRows[0]?.value ?? '';
+                              return NextResponse.json({
+                                    clinicName,
+                                          totalCredits: credits,
+                                                usedCredits: 0,
+                                                      remainingCredits: credits,
+                                                            unlimited: false,
+                                                                });
+                                                                  } catch (err) {
+                                                                      console.error('Credits error:', err);
+                                                                          return NextResponse.json({ error: 'DB error' }, { status: 500 });
+                                                                            }
+                                                                            }
 
-                          return NextResponse.json({
-                                clinicName,
-                                      totalCredits: credits,
-                                            usedCredits: 0,
-                                                  remainingCredits: credits,
-                                                        unlimited: false,
-                                                            });
-                                                              } catch (err) {
-                                                                  console.error('Credits error:', err);
-                                                                      return NextResponse.json({ error: 'DB error' }, { status: 500 });
-                                                                        }
-                                                                        }
+                                                                            // PATCH /api/credits - update credits (admin only)
+                                                                            export async function PATCH(req: Request) {
+                                                                              const auth = requireAdmin(req);
+                                                                                if (auth instanceof Response) return auth;
 
-                                                                        // PATCH /api/credits - update credits (admin only)
-                                                                        export async function PATCH(req: Request) {
-                                                                          const auth = requireAuth(req);
-                                                                            if (auth instanceof Response) return auth;
-
-                                                                              try {
-                                                                                  const { credits } = await req.json();
-                                                                                      await sql`UPDATE settings SET value = ${String(credits)} WHERE key = 'credits'`;
-                                                                                          return NextResponse.json({ success: true });
-                                                                                            } catch (err) {
-                                                                                                console.error('Update credits error:', err);
-                                                                                                    return NextResponse.json({ error: 'DB error' }, { status: 500 });
-                                                                                                      }
-                                                                                                      }
+                                                                                  try {
+                                                                                      const { credits } = await req.json();
+                                                                                          await sql`UPDATE settings SET value = ${String(credits)} WHERE key = 'credits'`;
+                                                                                              return NextResponse.json({ success: true });
+                                                                                                } catch (err) {
+                                                                                                    console.error('Update credits error:', err);
+                                                                                                        return NextResponse.json({ error: 'DB error' }, { status: 500 });
+                                                                                                          }
+                                                                                                          }
