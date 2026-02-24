@@ -1,43 +1,43 @@
-import { SPREADSHEET_ID } from '@/lib/google-sheets';
-import { getClinicCredits, getClinicIdForUser } from '@/lib/clinic';
+import { sql } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 
-// GET /api/credits?login=username — returns credit balance for user's clinic
+// GET /api/credits - returns credit balance
 export async function GET(req: Request) {
-    const auth = requireAuth(req);
+  const auth = requireAuth(req);
     if (auth instanceof Response) return auth;
 
-    try {
-        const { searchParams } = new URL(req.url);
-        const login = searchParams.get('login');
+      try {
+          const rows = await sql`SELECT value FROM settings WHERE key = 'credits'`;
+              const credits = parseInt(rows[0]?.value ?? '0');
 
-        if (!login) {
-            return NextResponse.json({ error: 'Missing login parameter' }, { status: 400 });
-        }
+                  const clinicRows = await sql`SELECT value FROM settings WHERE key = 'clinic_name'`;
+                      const clinicName = clinicRows[0]?.value ?? '';
 
-        if (!SPREADSHEET_ID) {
-            throw new Error('Missing SPREADSHEET_ID');
-        }
+                          return NextResponse.json({
+                                clinicName,
+                                      totalCredits: credits,
+                                            usedCredits: 0,
+                                                  remainingCredits: credits,
+                                                        unlimited: false,
+                                                            });
+                                                              } catch (err) {
+                                                                  console.error('Credits error:', err);
+                                                                      return NextResponse.json({ error: 'DB error' }, { status: 500 });
+                                                                        }
+                                                                        }
 
-        const clinicId = await getClinicIdForUser(SPREADSHEET_ID, login);
+                                                                        // PATCH /api/credits - update credits (admin only)
+                                                                        export async function PATCH(req: Request) {
+                                                                          const auth = requireAuth(req);
+                                                                            if (auth instanceof Response) return auth;
 
-        if (!clinicId) {
-            return NextResponse.json({
-                clinicName: 'Без клиники',
-                totalCredits: -1,
-                usedCredits: 0,
-                remainingCredits: -1,
-                unlimited: true,
-            });
-        }
-
-        const credits = await getClinicCredits(clinicId);
-        return NextResponse.json({ ...credits, unlimited: false });
-
-    } catch (error: unknown) {
-        console.error('[API] Credits Error:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        return NextResponse.json({ error: errorMessage }, { status: 500 });
-    }
-}
+                                                                              try {
+                                                                                  const { credits } = await req.json();
+                                                                                      await sql`UPDATE settings SET value = ${String(credits)} WHERE key = 'credits'`;
+                                                                                          return NextResponse.json({ success: true });
+                                                                                            } catch (err) {
+                                                                                                console.error('Update credits error:', err);
+                                                                                                    return NextResponse.json({ error: 'DB error' }, { status: 500 });
+                                                                                                      }
+                                                                                                      }

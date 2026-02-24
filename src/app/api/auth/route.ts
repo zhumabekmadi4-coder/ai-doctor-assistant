@@ -1,4 +1,47 @@
-import { getSheets, SPREADSHEET_ID } from '@/lib/google-sheets';
+import { verifyPassword, isLegacyHash, hashPassword, signSession } from '@/lib/auth';
+import { checkRateLimit } from '@/lib/rate-limit';
+
+export async function POST(req: Request) {
+  try {
+      const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+          if (!checkRateLimit(`auth:${ip}`, 5, 15 * 60 * 1000)) {
+                return NextResponse.json({ error: 'Too many attempts. Try in 15 minutes.' }, { status: 429 });
+                    }
+                    
+                        const { username, password } = await req.json();
+                            if (!username || !password) {
+                                  return NextResponse.json({ error: 'Missing credentials' }, { status: 400 });
+                                      }
+                                      
+                                          const rows = await sql`SELECT * FROM users WHERE LOWER(login) = LOWER(${username.trim()}) LIMIT 1`;
+                                              const user = rows[0];
+                                              
+                                                  if (!user) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+                                                      if (!user.active) return NextResponse.json({ error: 'Account disabled' }, { status: 403 });
+                                                      
+                                                          const isValid = await verifyPassword(password, user.password_hash);
+                                                              if (!isValid) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+                                                              
+                                                                  if (isLegacyHash(user.password_hash)) {
+                                                                        const newHash = await hashPassword(password);
+                                                                              await sql`UPDATE users SET password_hash = ${newHash} WHERE login = ${user.login}`;
+                                                                                  }
+                                                                                  
+                                                                                      const token = signSession({ login: user.login, role: user.role || 'doctor', name: user.name || '' });
+                                                                                          return NextResponse.json({
+                                                                                                success: true,
+                                                                                                      user: { login: user.login, name: user.name, specialty: user.specialty, role: user.role },
+                                                                                                            token,
+                                                                                                                });
+                                                                                                                  } catch (err) {
+                                                                                                                      console.error('Auth error:', err);
+                                                                                                                          return NextResponse.json({ error: 'Auth failed' }, { status: 500 });
+                                                                                                                            }
+                                                                                                                            }
+                                                                                                                            
+                                                                                                                            export async function GET() {
+                                                                                                                              return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
+                                                                                                                              }import { getSheets, SPREADSHEET_ID } from '@/lib/google-sheets';
 import { NextResponse } from 'next/server';
 import { verifyPassword, isLegacyHash, hashPassword, signSession } from '@/lib/auth';
 import { checkRateLimit } from '@/lib/rate-limit';
