@@ -40,94 +40,120 @@ export interface TemplateImage {
                                                       }
 
                                                       function headers() {
-                                                        return { 'Content-Type': 'application/json', 'x-session-token': getToken() };
-                                                        }
+                                                        return {
+                                                            'Content-Type': 'application/json',
+                                                                'x-session-token': getToken()
+                                                                  };
+                                                                  }
 
-                                                        export async function getTemplates(userLogin: string): Promise<Template[]> {
-                                                          const res = await fetch('/api/templates', { headers: headers() });
-                                                            if (!res.ok) return [];
-                                                              const data = await res.json();
-                                                                return (data.templates ?? []).map((t: any) => dbToTemplate(t));
-                                                                }
+                                                                  export async function getTemplates(userLogin: string): Promise<Template[]> {
+                                                                    const res = await fetch('/api/templates', { headers: headers() });
+                                                                      if (!res.ok) return [];
+                                                                        const data = await res.json();
+                                                                          return (data.templates ?? []).map((t: any) => dbToTemplate(t));
+                                                                          }
 
-                                                                export async function saveTemplate(userLogin: string, template: Omit<Template, 'id' | 'createdAt' | 'updatedAt' | 'authorLogin' | 'authorName'>): Promise<Template> {
-                                                                  const body = {
-                                                                      name: template.name,
-                                                                          complaints: template.complaints ?? '',
-                                                                              anamnesis: template.anamnesis ?? '',
-                                                                                  diagnosis: template.diagnosis ?? '',
-                                                                                      treatment: template.treatment ?? '',
-                                                                                          recommendations: template.recommendations ?? template.content ?? '',
-                                                                                            };
-                                                                                              const res = await fetch('/api/templates', { method: 'POST', headers: headers(), body: JSON.stringify(body) });
-                                                                                                const data = await res.json();
-                                                                                                  return dbToTemplate(data.template);
-                                                                                                  }
+                                                                          export async function saveTemplate(
+                                                                            userLogin: string,
+                                                                              template: Omit<Template, 'id' | 'createdAt' | 'updatedAt' | 'authorLogin' | 'authorName'> & { images?: TemplateImage[] }
+                                                                              ): Promise<Template> {
+                                                                                const body = {
+                                                                                    name: template.name,
+                                                                                        complaints: template.complaints ?? '',
+                                                                                            anamnesis: template.anamnesis ?? '',
+                                                                                                diagnosis: template.diagnosis ?? '',
+                                                                                                    treatment: template.treatment ?? '',
+                                                                                                        recommendations: template.recommendations ?? template.content ?? '',
+                                                                                                          };
+                                                                                                            const res = await fetch('/api/templates', {
+                                                                                                                method: 'POST',
+                                                                                                                    headers: headers(),
+                                                                                                                        body: JSON.stringify(body)
+                                                                                                                          });
+                                                                                                                            const data = await res.json();
+                                                                                                                              return dbToTemplate(data.template);
+                                                                                                                              }
 
-                                                                                                  export async function updateTemplate(userLogin: string, template: Template): Promise<Template> {
-                                                                                                    const body = {
-                                                                                                        id: template.id,
-                                                                                                            name: template.name,
-                                                                                                                complaints: template.complaints ?? '',
-                                                                                                                    anamnesis: template.anamnesis ?? '',
-                                                                                                                        diagnosis: template.diagnosis ?? '',
-                                                                                                                            treatment: template.treatment ?? '',
-                                                                                                                                recommendations: template.recommendations ?? template.content ?? '',
-                                                                                                                                  };
-                                                                                                                                    await fetch('/api/templates', { method: 'PATCH', headers: headers(), body: JSON.stringify(body) });
-                                                                                                                                      return template;
-                                                                                                                                      }
+                                                                                                                              export async function updateTemplate(userLogin: string, template: Template): Promise<Template> {
+                                                                                                                                const body = {
+                                                                                                                                    id: template.id,
+                                                                                                                                        name: template.name,
+                                                                                                                                            complaints: template.complaints ?? '',
+                                                                                                                                                anamnesis: template.anamnesis ?? '',
+                                                                                                                                                    diagnosis: template.diagnosis ?? '',
+                                                                                                                                                        treatment: template.treatment ?? '',
+                                                                                                                                                            recommendations: template.recommendations ?? template.content ?? '',
+                                                                                                                                                              };
+                                                                                                                                                                await fetch('/api/templates', {
+                                                                                                                                                                    method: 'PATCH',
+                                                                                                                                                                        headers: headers(),
+                                                                                                                                                                            body: JSON.stringify(body)
+                                                                                                                                                                              });
+                                                                                                                                                                                return template;
+                                                                                                                                                                                }
 
-                                                                                                                                      export async function deleteTemplate(userLogin: string, templateId: string): Promise<void> {
-                                                                                                                                        await fetch('/api/templates', { method: 'DELETE', headers: headers(), body: JSON.stringify({ id: templateId }) });
-                                                                                                                                        }
+                                                                                                                                                                                export async function deleteTemplate(userLogin: string, templateId: string): Promise<void> {
+                                                                                                                                                                                  await fetch('/api/templates', {
+                                                                                                                                                                                      method: 'DELETE',
+                                                                                                                                                                                          headers: headers(),
+                                                                                                                                                                                              body: JSON.stringify({ id: templateId })
+                                                                                                                                                                                                });
+                                                                                                                                                                                                }
 
-                                                                                                                                        export async function getTemplate(userLogin: string, templateId: string): Promise<Template | null> {
-                                                                                                                                          const templates = await getTemplates(userLogin);
-                                                                                                                                            return templates.find(t => t.id === templateId) ?? null;
-                                                                                                                                            }
+                                                                                                                                                                                                export async function getTemplate(userLogin: string, templateId: string): Promise<Template | null> {
+                                                                                                                                                                                                  const templates = await getTemplates(userLogin);
+                                                                                                                                                                                                    return templates.find(t => t.id === templateId) ?? null;
+                                                                                                                                                                                                    }
 
-                                                                                                                                            function dbToTemplate(t: any): Template {
-                                                                                                                                              return {
-                                                                                                                                                  id: String(t.id),
-                                                                                                                                                      name: t.name ?? '',
-                                                                                                                                                          description: '',
-                                                                                                                                                              headerText: t.name ?? '',
-                                                                                                                                                                  content: t.recommendations ?? '',
-                                                                                                                                                                      images: [],
-                                                                                                                                                                          createdAt: t.created_at ?? new Date().toISOString(),
-                                                                                                                                                                              updatedAt: t.created_at ?? new Date().toISOString(),
-                                                                                                                                                                                  isPublic: false,
-                                                                                                                                                                                      authorLogin: t.doctor_login ?? '',
-                                                                                                                                                                                          authorName: t.doctor_login ?? '',
-                                                                                                                                                                                              complaints: t.complaints ?? '',
-                                                                                                                                                                                                  anamnesis: t.anamnesis ?? '',
-                                                                                                                                                                                                      diagnosis: t.diagnosis ?? '',
-                                                                                                                                                                                                          treatment: t.treatment ?? '',
-                                                                                                                                                                                                              recommendations: t.recommendations ?? '',
-                                                                                                                                                                                                                };
-                                                                                                                                                                                                                }
+                                                                                                                                                                                                    function dbToTemplate(t: any): Template {
+                                                                                                                                                                                                      return {
+                                                                                                                                                                                                          id: String(t.id),
+                                                                                                                                                                                                              name: t.name ?? '',
+                                                                                                                                                                                                                  description: '',
+                                                                                                                                                                                                                      headerText: t.name ?? '',
+                                                                                                                                                                                                                          content: t.recommendations ?? '',
+                                                                                                                                                                                                                              images: [],
+                                                                                                                                                                                                                                  createdAt: t.created_at ?? new Date().toISOString(),
+                                                                                                                                                                                                                                      updatedAt: t.created_at ?? new Date().toISOString(),
+                                                                                                                                                                                                                                          isPublic: false,
+                                                                                                                                                                                                                                              authorLogin: t.doctor_login ?? '',
+                                                                                                                                                                                                                                                  authorName: t.doctor_login ?? '',
+                                                                                                                                                                                                                                                      complaints: t.complaints ?? '',
+                                                                                                                                                                                                                                                          anamnesis: t.anamnesis ?? '',
+                                                                                                                                                                                                                                                              diagnosis: t.diagnosis ?? '',
+                                                                                                                                                                                                                                                                  treatment: t.treatment ?? '',
+                                                                                                                                                                                                                                                                      recommendations: t.recommendations ?? '',
+                                                                                                                                                                                                                                                                        };
+                                                                                                                                                                                                                                                                        }
 
-                                                                                                                                                                                                                export function initializeDefaultTemplates(userLogin: string): void {
-                                                                                                                                                                                                                  // No-op: templates are now stored in DB
-                                                                                                                                                                                                                    // Default templates are pre-inserted during setup
-                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                                        export function initializeDefaultTemplates(userLogin: string): void {
+                                                                                                                                                                                                                                                                          // No-op: templates are now stored in DB
+                                                                                                                                                                                                                                                                          }
 
-                                                                                                                                                                                                                    // Stub functions for backward compatibility with templates/page.tsx
-                                                                                                                                                                                                                    export async function getAllPublicTemplates(): Promise<Template[]> {
-                                                                                                                                                                                                                      return [];
-                                                                                                                                                                                                                      }
+                                                                                                                                                                                                                                                                          // Stub functions for backward compatibility
+                                                                                                                                                                                                                                                                          export async function getAllPublicTemplates(): Promise<Template[]> {
+                                                                                                                                                                                                                                                                            return [];
+                                                                                                                                                                                                                                                                            }
 
-                                                                                                                                                                                                                      export async function getTemplatesByType(userLogin: string, type: 'my' | 'public'): Promise<Template[]> {
-                                                                                                                                                                                                                        if (type === 'my') return getTemplates(userLogin);
-                                                                                                                                                                                                                          return getAllPublicTemplates();
-                                                                                                                                                                                                                          }
+                                                                                                                                                                                                                                                                            export async function getTemplatesByType(userLogin: string, type: 'my' | 'public'): Promise<Template[]> {
+                                                                                                                                                                                                                                                                              if (type === 'my') return getTemplates(userLogin);
+                                                                                                                                                                                                                                                                                return getAllPublicTemplates();
+                                                                                                                                                                                                                                                                                }
 
-                                                                                                                                                                                                                          export async function togglePublicStatus(userLogin: string, templateId: string): Promise<Template | null> {
-                                                                                                                                                                                                                            // Public status toggling not implemented in current DB schema
-                                                                                                                                                                                                                              return null;
-                                                                                                                                                                                                                              }
+                                                                                                                                                                                                                                                                                export async function togglePublicStatus(userLogin: string, templateId: string): Promise<Template | null> {
+                                                                                                                                                                                                                                                                                  return null;
+                                                                                                                                                                                                                                                                                  }
 
-                                                                                                                                                                                                                              export function isTemplateAuthor(userLogin: string, template: Template): boolean {
-                                                                                                                                                                                                                                return template.authorLogin === userLogin;
-                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                                  export function isTemplateAuthor(userLogin: string, template: Template): boolean {
+                                                                                                                                                                                                                                                                                    return template.authorLogin === userLogin;
+                                                                                                                                                                                                                                                                                    }
+
+                                                                                                                                                                                                                                                                                    export function toAttached(template: Template): AttachedTemplate {
+                                                                                                                                                                                                                                                                                      return {
+                                                                                                                                                                                                                                                                                          templateId: template.id,
+                                                                                                                                                                                                                                                                                              name: template.name,
+                                                                                                                                                                                                                                                                                                  headerText: template.headerText,
+                                                                                                                                                                                                                                                                                                      content: template.content,
+                                                                                                                                                                                                                                                                                                          images: template.images,
+                                                                                                                                                                                                                                                                                                            };
+                                                                                                                                                                                                                                                                                                            }
