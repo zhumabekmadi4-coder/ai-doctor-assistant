@@ -1,6 +1,6 @@
 import { sql } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 
 // POST /api/import-templates — import templates from localStorage JSON export
 //
@@ -13,7 +13,7 @@ import { requireAdmin } from '@/lib/auth';
 //     complaints, anamnesis, diagnosis, treatment, recommendations, createdAt, updatedAt }
 
 export async function POST(req: Request) {
-    const auth = requireAdmin(req);
+    const auth = requireAuth(req);
     if (auth instanceof Response) return auth;
 
     try {

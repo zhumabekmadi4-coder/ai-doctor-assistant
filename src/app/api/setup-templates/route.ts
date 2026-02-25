@@ -1,11 +1,11 @@
 import { sql } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 
 // POST /api/setup-templates - Create or update templates table schema in Neon
 // Run once after deploying to add new columns
 export async function POST(req: Request) {
-    const auth = requireAdmin(req);
+    const auth = requireAuth(req);
     if (auth instanceof Response) return auth;
 
     try {
