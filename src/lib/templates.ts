@@ -36,7 +36,7 @@ export interface AttachedTemplate {
 }
 
 function getToken(): string {
-    return localStorage.getItem('session_token') ?? '';
+    return localStorage.getItem('sessionToken') ?? '';
 }
 
 function headers() {
