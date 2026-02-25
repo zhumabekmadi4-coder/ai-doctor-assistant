@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Plus, Trash2, RefreshCw, ArrowLeft, Shield, Eye, EyeOff, CheckCircle, XCircle, CreditCard } from 'lucide-react';
+import { Users, Plus, Trash2, RefreshCw, ArrowLeft, Shield, Eye, EyeOff, CheckCircle, XCircle, CreditCard, Coins } from 'lucide-react';
 import { authFetch } from '@/lib/client-auth';
 
 interface User {
@@ -12,6 +12,7 @@ interface User {
     specialty: string;
     role: string;
     active: boolean;
+    tokens_balance: number;
 }
 
 export default function AdminPage() {
@@ -26,6 +27,10 @@ export default function AdminPage() {
 
     // Credits state
     const [credits, setCredits] = useState<{ remaining: number; total: number; used: number; clinicName: string; unlimited: boolean } | null>(null);
+
+    // Token top-up state: { login -> amount string }
+    const [tokenInputs, setTokenInputs] = useState<Record<string, string>>({});
+    const [tokenAdding, setTokenAdding] = useState<Record<string, boolean>>({});
 
     const [form, setForm] = useState({
         login: '',
@@ -131,6 +136,29 @@ export default function AdminPage() {
             setTimeout(() => setSuccessMsg(''), 4000);
         } catch {
             setError('Ошибка при удалении');
+        }
+    };
+
+    const handleAddTokens = async (login: string, name: string) => {
+        const amount = parseInt(tokenInputs[login] || '0', 10);
+        if (!amount || amount <= 0) return;
+        setTokenAdding(prev => ({ ...prev, [login]: true }));
+        try {
+            const res = await authFetch('/api/tokens', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ login, amount }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+            setSuccessMsg(`Врачу "${name}" добавлено ${amount} токенов. Баланс: ${data.balance}`);
+            setTokenInputs(prev => ({ ...prev, [login]: '' }));
+            loadUsers();
+            setTimeout(() => setSuccessMsg(''), 4000);
+        } catch {
+            setError('Ошибка при добавлении токенов');
+        } finally {
+            setTokenAdding(prev => ({ ...prev, [login]: false }));
         }
     };
 
@@ -393,13 +421,50 @@ export default function AdminPage() {
                                         </div>
                                     </div>
                                     {user.active && (
-                                        <button
-                                            onClick={() => handleDelete(user.login, user.name || user.login)}
-                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                            title="Деактивировать"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            {/* Token balance badge */}
+                                            <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                                                user.tokens_balance <= 1 ? 'bg-red-50 text-red-600 border-red-200' :
+                                                user.tokens_balance <= 5 ? 'bg-amber-50 text-amber-600 border-amber-200' :
+                                                'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                            }`}>
+                                                <Coins className="w-3 h-3" />
+                                                {user.tokens_balance}
+                                            </div>
+
+                                            {/* Add tokens inline */}
+                                            <div className="flex items-center gap-1">
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    max="100"
+                                                    value={tokenInputs[user.login] || ''}
+                                                    onChange={(e) => setTokenInputs(prev => ({ ...prev, [user.login]: e.target.value }))}
+                                                    placeholder="+N"
+                                                    className="w-14 px-2 py-1 text-xs border border-gray-200 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                                />
+                                                <button
+                                                    onClick={() => handleAddTokens(user.login, user.name || user.login)}
+                                                    disabled={!tokenInputs[user.login] || tokenAdding[user.login]}
+                                                    className="px-2 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                                                    title="Добавить токены"
+                                                >
+                                                    {tokenAdding[user.login] ? (
+                                                        <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                                                    ) : (
+                                                        <Plus className="w-3 h-3" />
+                                                    )}
+                                                </button>
+                                            </div>
+
+                                            <button
+                                                onClick={() => handleDelete(user.login, user.name || user.login)}
+                                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Деактивировать"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             ))}

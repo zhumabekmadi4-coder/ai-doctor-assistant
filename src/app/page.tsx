@@ -9,8 +9,10 @@ import { LoginScreen } from '@/components/LoginScreen';
 import { QRModal } from '@/components/QRModal';
 import { TemplateSelector } from '@/components/TemplateSelector';
 import { CouponPage } from '@/components/CouponPage';
+import { TokenBadge } from '@/components/TokenBadge';
+import { TokenWarningModal } from '@/components/TokenWarningModal';
 import { getTemplates, AttachedTemplate, initializeDefaultTemplates } from '@/lib/templates';
-import { authFetch, clearSessionToken, getSessionToken } from '@/lib/client-auth';
+import { authFetch, clearSessionToken, getSessionToken, setSessionToken } from '@/lib/client-auth';
 
 interface Procedure {
   name: string;
@@ -56,6 +58,24 @@ function mapAIProcedures(aiProcs: Record<string, number>): Procedure[] {
   });
 }
 
+function mergeResults(existing: AnalysisResult, newData: AnalysisResult): AnalysisResult {
+  const isEmpty = (v: string) => !v || v.trim() === '' || v === 'Не указано';
+  return {
+    patientName: isEmpty(existing.patientName) ? newData.patientName : existing.patientName,
+    dob: isEmpty(existing.dob) ? newData.dob : existing.dob,
+    visitDate: isEmpty(existing.visitDate) ? newData.visitDate : existing.visitDate,
+    complaints: isEmpty(existing.complaints) ? newData.complaints : existing.complaints,
+    anamnesis: isEmpty(existing.anamnesis) ? newData.anamnesis : existing.anamnesis,
+    diagnosis: isEmpty(existing.diagnosis) ? newData.diagnosis : existing.diagnosis,
+    treatment: isEmpty(existing.treatment) ? newData.treatment : existing.treatment,
+    recommendations: isEmpty(existing.recommendations) ? newData.recommendations : existing.recommendations,
+    procedures: existing.procedures.map((proc, idx) => ({
+      ...proc,
+      quantity: proc.quantity > 0 ? proc.quantity : (newData.procedures[idx]?.quantity || 0),
+    })),
+  };
+}
+
 interface DoctorProfile {
   name: string;
   specialty: string;
@@ -83,15 +103,64 @@ function HomeContent() {
     const [selectorTemplates, setSelectorTemplates] = useState<import('@/lib/templates').Template[]>([]);
   const [showCoupons, setShowCoupons] = useState(false);
   const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
+  const [tokenBalance, setTokenBalance] = useState<number | null>(null);
+  const [tokenWarning, setTokenWarning] = useState<0 | 1 | 5 | null>(null);
+  const [isContinuingRecording, setIsContinuingRecording] = useState(false);
+  const [isAdditionalAnalyzing, setIsAdditionalAnalyzing] = useState(false);
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfile>({
     name: '',
     specialty: '',
     license: ''
   });
 
+  // Helper: check token warning thresholds (5, 1, 0)
+  const checkTokenWarning = (balance: number) => {
+    if (balance === 0) {
+      setTokenWarning(0);
+      return;
+    }
+    if (balance === 1 && !sessionStorage.getItem('tokenWarnShown_1')) {
+      sessionStorage.setItem('tokenWarnShown_1', '1');
+      setTokenWarning(1);
+      return;
+    }
+    if (balance === 5 && !sessionStorage.getItem('tokenWarnShown_5')) {
+      sessionStorage.setItem('tokenWarnShown_5', '1');
+      setTokenWarning(5);
+    }
+  };
+
+  // Helper: read a cookie value by name
+  const getCookie = (name: string): string | null => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()!.split(';').shift() || null;
+    return null;
+  };
+
   // Init: auth check, profile load, patient from sessionStorage, mobile listener
   useEffect(() => {
-    // Auth
+    // Check for Google OAuth session cookie
+    const googleToken = getCookie('_gsession');
+    const googleUser = getCookie('_guser');
+    if (googleToken && googleUser) {
+      // Clear cookies
+      document.cookie = '_gsession=; Max-Age=0; Path=/';
+      document.cookie = '_guser=; Max-Age=0; Path=/';
+      try {
+        const userData = JSON.parse(atob(googleUser));
+        setSessionToken(googleToken);
+        localStorage.setItem('doctorSession', JSON.stringify({
+          login: userData.login,
+          username: userData.login,
+          name: userData.name,
+          specialty: userData.specialty || '',
+          role: userData.role,
+          loginTime: new Date().toISOString(),
+        }));
+      } catch { }
+    }
+
     // Auth
     const session = localStorage.getItem('doctorSession');
     const token = getSessionToken();
@@ -129,6 +198,17 @@ function HomeContent() {
                 setIsLoggedIn(false);
               }
             });
+
+          // Fetch personal token balance
+          authFetch('/api/tokens')
+            .then(r => r.json())
+            .then(data => {
+              if (typeof data.balance === 'number') {
+                setTokenBalance(data.balance);
+                checkTokenWarning(data.balance);
+              }
+            })
+            .catch(() => { });
         }
 
         // Load per-user profile, fallback to account data
@@ -247,18 +327,65 @@ function HomeContent() {
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
       const response = await authFetch('/api/analyze', { method: 'POST', body: formData });
+      if (response.status === 402) {
+        setTokenBalance(0);
+        setTokenWarning(0);
+        return;
+      }
       if (!response.ok) throw new Error('Analysis failed');
       const data = await response.json();
       setResult({
         ...data.analysis,
         procedures: mapAIProcedures(data.analysis.procedures || {}),
       });
+      if (typeof data.tokenBalance === 'number') {
+        setTokenBalance(data.tokenBalance);
+        checkTokenWarning(data.tokenBalance);
+      }
     } catch (error) {
       console.error('Analysis error:', error);
       alert('Ошибка анализа записи');
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleAdditionalAnalyze = async () => {
+    if (!audioBlob || !result) return;
+    setIsAdditionalAnalyzing(true);
+    try {
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.webm');
+      const response = await authFetch('/api/analyze', { method: 'POST', body: formData });
+      if (response.status === 402) {
+        setTokenBalance(0);
+        setTokenWarning(0);
+        return;
+      }
+      if (!response.ok) throw new Error('Analysis failed');
+      const data = await response.json();
+      const newData: AnalysisResult = {
+        ...data.analysis,
+        procedures: mapAIProcedures(data.analysis.procedures || {}),
+      };
+      setResult(mergeResults(result, newData));
+      setIsContinuingRecording(false);
+      resetRecording();
+      if (typeof data.tokenBalance === 'number') {
+        setTokenBalance(data.tokenBalance);
+        checkTokenWarning(data.tokenBalance);
+      }
+    } catch (error) {
+      console.error('Additional analysis error:', error);
+      alert('Ошибка анализа записи');
+    } finally {
+      setIsAdditionalAnalyzing(false);
+    }
+  };
+
+  const handleCancelContinuation = () => {
+    setIsContinuingRecording(false);
+    resetRecording();
   };
 
   const handleSave = async () => {
@@ -313,6 +440,13 @@ function HomeContent() {
         initialProfile={doctorProfile}
       />
       {isQROpen && <QRModal onClose={() => setIsQROpen(false)} />}
+      {tokenWarning !== null && (
+        <TokenWarningModal
+          remaining={tokenWarning}
+          doctorName={doctorProfile.name}
+          onClose={() => setTokenWarning(null)}
+        />
+      )}
 
       <div className="flex min-h-screen">
 
@@ -386,7 +520,9 @@ function HomeContent() {
             </button>
 
             <div className="flex items-center justify-between px-2">
-              {remainingCredits !== null && (
+              {tokenBalance !== null ? (
+                <TokenBadge balance={tokenBalance} doctorName={doctorProfile.name} />
+              ) : remainingCredits !== null && (
                 <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border ${remainingCredits <= 0 ? 'bg-red-50 text-red-700 border-red-200' :
                   remainingCredits < 10 ? 'bg-amber-50 text-amber-700 border-amber-200' :
                     'bg-emerald-50 text-emerald-700 border-emerald-200'
@@ -504,7 +640,7 @@ function HomeContent() {
                       Результаты анализа
                     </h2>
                     <div className="flex gap-2 flex-wrap">
-                      <button onClick={() => { setResult(null); setAttachedTemplates([]); setShowCoupons(false); resetRecording(); }} className="btn-secondary flex items-center gap-1 text-xs px-3 py-1.5 hover:bg-slate-100 bg-white">
+                      <button onClick={() => { setResult(null); setAttachedTemplates([]); setShowCoupons(false); resetRecording(); setIsContinuingRecording(false); }} className="btn-secondary flex items-center gap-1 text-xs px-3 py-1.5 hover:bg-slate-100 bg-white">
                         <Mic className="w-3.5 h-3.5" />
                         Новый
                       </button>
@@ -524,6 +660,15 @@ className="btn-secondary flex items-center gap-1 text-xs px-3 py-1.5 text-teal-7
                       >
                         🎟️ Купоны {showCoupons ? '✓' : ''}
                       </button>
+                      {!isContinuingRecording && (
+                        <button
+                          onClick={() => { resetRecording(); setIsContinuingRecording(true); }}
+                          className="btn-secondary flex items-center gap-1 text-xs px-3 py-1.5 text-violet-700 border-violet-200 hover:bg-violet-50 bg-white"
+                        >
+                          <Mic className="w-3.5 h-3.5" />
+                          Дополнить
+                        </button>
+                      )}
                       <button
                         onClick={handlePrint}
                         className="btn-secondary flex items-center gap-1 text-xs px-3 py-1.5 bg-white"
@@ -540,6 +685,84 @@ className="btn-secondary flex items-center gap-1 text-xs px-3 py-1.5 text-teal-7
                       </button>
                     </div>
                   </div>
+
+                  {/* Continuation Recording Panel */}
+                  {isContinuingRecording && (
+                    <div className="px-5 py-4 bg-violet-50 border-b border-violet-100 print:hidden">
+                      <div className="flex items-center justify-between flex-wrap gap-3">
+                        <div className="flex items-center gap-3">
+                          {isAdditionalAnalyzing ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin text-violet-600" />
+                              <span className="text-sm font-medium text-violet-800">Анализирую дополнение...</span>
+                            </>
+                          ) : isRecording ? (
+                            <>
+                              <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse shrink-0" />
+                              <span className="text-sm font-medium text-slate-700">Запись дополнения...</span>
+                              <span className="text-xs text-slate-500">Диктуйте недостающие данные</span>
+                            </>
+                          ) : audioBlob ? (
+                            <>
+                              <div className="w-3 h-3 rounded-full bg-violet-400 shrink-0" />
+                              <span className="text-sm font-medium text-violet-800">Запись готова — нажмите «Применить»</span>
+                            </>
+                          ) : (
+                            <>
+                              <Mic className="w-5 h-5 text-violet-500 shrink-0" />
+                              <span className="text-sm font-medium text-violet-700">Продиктуйте недостающие данные карты</span>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!isRecording && !audioBlob && !isAdditionalAnalyzing && (
+                            <button
+                              onClick={startRecording}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-semibold hover:bg-violet-700 transition-colors"
+                            >
+                              <Mic className="w-3.5 h-3.5" />
+                              Начать запись
+                            </button>
+                          )}
+                          {isRecording && (
+                            <button
+                              onClick={stopRecording}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600 transition-colors"
+                            >
+                              <Square className="w-3.5 h-3.5 fill-current" />
+                              Остановить
+                            </button>
+                          )}
+                          {audioBlob && !isRecording && !isAdditionalAnalyzing && (
+                            <>
+                              <button
+                                onClick={resetRecording}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-colors"
+                              >
+                                Перезаписать
+                              </button>
+                              <button
+                                onClick={handleAdditionalAnalyze}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-semibold hover:bg-violet-700 transition-colors"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                Применить к карте
+                              </button>
+                            </>
+                          )}
+                          {!isAdditionalAnalyzing && !isRecording && (
+                            <button
+                              onClick={handleCancelContinuation}
+                              className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors rounded-md hover:bg-white"
+                              title="Отмена"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="p-8 space-y-6 print:p-0 print:pl-0 print:pr-[20mm] print:space-y-2 print:text-[11px] print:leading-tight print-text-wrap">
                     <div className="text-left mb-4 border-b pb-2 hidden print:block">

@@ -46,6 +46,19 @@ function headers() {
     };
 }
 
+// Simple in-memory cache: invalidated on any write operation
+let _cache: Template[] | null = null;
+let _cacheKey = '';
+
+function getCacheKey(): string {
+    return getToken().slice(-8);
+}
+
+function invalidateCache() {
+    _cache = null;
+    _cacheKey = '';
+}
+
 // Map raw DB row → Template interface
 function dbToTemplate(t: any): Template {
     let images: TemplateImage[] = [];
@@ -76,10 +89,15 @@ function dbToTemplate(t: any): Template {
 }
 
 export async function getTemplates(userLogin: string): Promise<Template[]> {
-    const res = await fetch('/api/templates', { headers: headers() });
+    const key = getCacheKey();
+    if (_cache && _cacheKey === key) return _cache;
+    const res = await fetch('/api/templates?slim=true', { headers: headers() });
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.templates ?? []).map((t: any) => dbToTemplate(t));
+    const result = (data.templates ?? []).map((t: any) => dbToTemplate(t));
+    _cache = result;
+    _cacheKey = key;
+    return result;
 }
 
 export async function saveTemplate(
@@ -105,6 +123,7 @@ export async function saveTemplate(
         headers: headers(),
         body: JSON.stringify(body),
     });
+    invalidateCache();
     const data = await res.json();
     return dbToTemplate(data.template);
 }
@@ -129,6 +148,7 @@ export async function updateTemplate(userLogin: string, template: Template): Pro
         headers: headers(),
         body: JSON.stringify(body),
     });
+    invalidateCache();
     return template;
 }
 
@@ -138,6 +158,7 @@ export async function deleteTemplate(userLogin: string, templateId: string): Pro
         headers: headers(),
         body: JSON.stringify({ id: templateId }),
     });
+    invalidateCache();
 }
 
 export async function getTemplate(userLogin: string, templateId: string): Promise<Template | null> {

@@ -1,6 +1,7 @@
 import { getOpenAI } from '@/lib/openai';
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
+import { sql } from '@/lib/db';
 
 // App Router: use nodejs runtime for large file uploads
 export const runtime = 'nodejs';
@@ -10,6 +11,13 @@ export async function POST(req: Request) {
     // Auth guard
     const authResult = requireAuth(req);
     if (authResult instanceof Response) return authResult;
+
+    // Check token balance before doing any work
+    const userRows = await sql`SELECT tokens_balance FROM users WHERE login = ${authResult.login}`;
+    const tokenBalance: number = userRows[0]?.tokens_balance ?? 0;
+    if (tokenBalance <= 0) {
+        return NextResponse.json({ error: 'no_tokens', balance: 0 }, { status: 402 });
+    }
 
     try {
         const openai = getOpenAI();
@@ -79,7 +87,16 @@ export async function POST(req: Request) {
 
         const analysis = JSON.parse(content);
 
-        return NextResponse.json({ text, analysis });
+        // Deduct 1 token after successful analysis
+        const updated = await sql`
+            UPDATE users
+            SET tokens_balance = tokens_balance - 1
+            WHERE login = ${authResult.login} AND tokens_balance > 0
+            RETURNING tokens_balance
+        `;
+        const newBalance: number = updated[0]?.tokens_balance ?? tokenBalance - 1;
+
+        return NextResponse.json({ text, analysis, tokenBalance: newBalance });
 
     } catch (error: any) {
         console.error('[API] Error:', error);

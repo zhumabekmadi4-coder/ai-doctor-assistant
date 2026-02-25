@@ -3,19 +3,35 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 
 // GET /api/templates — return own templates + all public templates
+// ?slim=true — exclude images column (for list views, much faster)
 export async function GET(req: Request) {
     const auth = requireAuth(req);
     if (auth instanceof Response) return auth;
 
+    const url = new URL(req.url);
+    const slim = url.searchParams.get('slim') === 'true';
+
     try {
-        const data = await sql`
-            SELECT * FROM templates
-            WHERE doctor_login = ${auth.login}
-               OR is_public = true
-            ORDER BY
-                CASE WHEN doctor_login = ${auth.login} THEN 0 ELSE 1 END,
-                created_at DESC
-        `;
+        const data = slim
+            ? await sql`
+                SELECT id, name, description, header_text, content,
+                       complaints, anamnesis, diagnosis, treatment, recommendations,
+                       is_public, doctor_login, author_name, created_at, updated_at
+                FROM templates
+                WHERE doctor_login = ${auth.login}
+                   OR is_public = true
+                ORDER BY
+                    CASE WHEN doctor_login = ${auth.login} THEN 0 ELSE 1 END,
+                    created_at DESC
+              `
+            : await sql`
+                SELECT * FROM templates
+                WHERE doctor_login = ${auth.login}
+                   OR is_public = true
+                ORDER BY
+                    CASE WHEN doctor_login = ${auth.login} THEN 0 ELSE 1 END,
+                    created_at DESC
+              `;
         return NextResponse.json({ templates: data });
     } catch (err) {
         console.error(err);

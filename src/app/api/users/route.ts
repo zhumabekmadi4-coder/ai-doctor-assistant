@@ -8,7 +8,7 @@ export async function GET(req: Request) {
     if (auth instanceof Response) return auth;
 
       try {
-          const data = await sql`SELECT id, login, name, specialty, role, active FROM users ORDER BY id`;
+          const data = await sql`SELECT id, login, name, specialty, role, active, tokens_balance FROM users ORDER BY id`;
               const users = data.map((u: any) => ({
                     rowIndex: u.id,
                           login: u.login,
@@ -16,6 +16,7 @@ export async function GET(req: Request) {
                                       specialty: u.specialty,
                                             role: u.role,
                                                   active: u.active,
+                                                        tokens_balance: u.tokens_balance ?? 15,
                                                       }));
                                                           return NextResponse.json({ users });
                                                             } catch (err) {
