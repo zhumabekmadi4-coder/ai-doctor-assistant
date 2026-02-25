@@ -80,6 +80,7 @@ function HomeContent() {
   const [isQROpen, setIsQROpen] = useState(false);
   const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
   const [attachedTemplates, setAttachedTemplates] = useState<AttachedTemplate[]>([]);
+    const [selectorTemplates, setSelectorTemplates] = useState<import('@/lib/templates').Template[]>([]);
   const [showCoupons, setShowCoupons] = useState(false);
   const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfile>({
@@ -508,8 +509,8 @@ function HomeContent() {
                         Новый
                       </button>
                       <button
-                        onClick={() => setIsTemplateSelectorOpen(true)}
-                        className="btn-secondary flex items-center gap-1 text-xs px-3 py-1.5 text-teal-700 border-teal-200 hover:bg-teal-50 bg-white"
+            onClick={() => { getTemplates(userLogin).then(setSelectorTemplates); setIsTemplateSelectorOpen(true); }}
+className="btn-secondary flex items-center gap-1 text-xs px-3 py-1.5 text-teal-700 border-teal-200 hover:bg-teal-50 bg-white"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         Шаблон
@@ -784,7 +785,7 @@ function HomeContent() {
 
             {isTemplateSelectorOpen && (
               <TemplateSelector
-                templates={getTemplates(userLogin)}
+                templates={selectorTemplates}
                 patientName={result?.patientName || ''}
                 onAttach={(newAttached) => {
                   setAttachedTemplates(prev => [...prev, ...newAttached]);
