@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Экспорт шаблонов из localStorage</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .instructions {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196F3;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button.secondary {
+            background: #2196F3;
+        }
+        button.secondary:hover {
+            background: #0b7dda;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .error {
+            color: #f44336;
+            font-weight: bold;
+        }
+        .info {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 4px solid #ffc107;
+        }
+        .template-preview {
+            margin: 10px 0;
+            padding: 10px;
+            background: #fafafa;
+            border-left: 3px solid #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Экспорт шаблонов из localStorage</h1>
+        
+        <div class="instructions">
+            <h3>📋 Инструкция:</h3>
+            <ol>
+                <li>Откройте эту страницу в том же браузере, где работает ваше приложение</li>
+                <li>Нажмите кнопку "Найти шаблоны"</li>
+                <li>Скопируйте JSON-данные</li>
+                <li>Сохраните в файл <code>my_templates.json</code></li>
+            </ol>
+        </div>
+
+        <div>
+            <button onclick="findTemplates()">🔍 Найти шаблоны</button>
+            <button class="secondary" onclick="copyToClipboard()">📋 Копировать JSON</button>
+            <button class="secondary" onclick="downloadJSON()">💾 Скачать файл</button>
+        </div>
+
+        <div id="output"></div>
+    </div>
+
+    <script>
+        let templatesData = null;
+
+        function findTemplates() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<div class="info">🔍 Поиск шаблонов в localStorage...</div>';
+            
+            try {
+                // Ищем все ключи, которые начинаются с "templates_"
+                const allTemplates = {};
+                let totalFound = 0;
+                
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('templates_')) {
+                        const userLogin = key.replace('templates_', '');
+                        const templates = JSON.parse(localStorage.getItem(key) || '[]');
+                        
+                        if (templates.length > 0) {
+                            allTemplates[userLogin] = templates;
+                            totalFound += templates.length;
+                            
+                            output.innerHTML += `
+                                <div class="template-preview">
+                                    <strong>👤 Пользователь:</strong> ${userLogin}<br>
+                                    <strong>📝 Шаблонов:</strong> ${templates.length}
+                                </div>
+                            `;
+                        }
+                    }
+                }
+                
+                if (totalFound === 0) {
+                    output.innerHTML += '<div class="error">❌ Шаблоны не найдены в localStorage</div>';
+                    output.innerHTML += '<div class="info">💡 Убедитесь, что:<br>1. Вы открыли эту страницу в том же браузере<br>2. Вы залогинены в приложении<br>3. У вас есть созданные шаблоны</div>';
+                    return;
+                }
+                
+                templatesData = allTemplates;
+                
+                output.innerHTML += `
+                    <div class="success">✅ Найдено ${totalFound} шаблонов от ${Object.keys(allTemplates).length} пользователей</div>
+                    <hr>
+                    <h3>📄 JSON данные:</h3>
+                    <pre>${JSON.stringify(allTemplates, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                output.innerHTML += `<div class="error">❌ Ошибка: ${error.message}</div>`;
+            }
+        }
+
+        function copyToClipboard() {
+            if (!templatesData) {
+                alert('Сначала найдите шаблоны!');
+                return;
+            }
+            
+            const jsonString = JSON.stringify(templatesData, null, 2);
+            navigator.clipboard.writeText(jsonString).then(() => {
+                alert('✅ JSON скопирован в буфер обмена!');
+            }).catch(err => {
+                alert('❌ Ошибка копирования: ' + err);
+            });
+        }
+
+        function downloadJSON() {
+            if (!templatesData) {
+                alert('Сначала найдите шаблоны!');
+                return;
+            }
+            
+            const jsonString = JSON.stringify(templatesData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'my_templates.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('✅ Файл my_templates.json скачан!');
+        }
+
+        // Автоматически ищем шаблоны при загрузке страницы
+        window.addEventListener('load', () => {
+            setTimeout(findTemplates, 500);
+        });
+    </script>
+</body>
+</html>
