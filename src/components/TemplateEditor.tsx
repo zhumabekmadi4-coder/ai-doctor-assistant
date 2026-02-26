@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { Template, TemplateImage } from '@/lib/templates';
-import { X, Plus, Image as ImageIcon, Link, Trash2, Save, ArrowLeft } from 'lucide-react';
+import { X, Plus, Image as ImageIcon, Link, Trash2, Save, ArrowLeft, Globe, Lock } from 'lucide-react';
 
 interface TemplateEditorProps {
     template?: Template;
@@ -20,6 +20,7 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
     const [headerText, setHeaderText] = useState(template?.headerText || '');
     const [content, setContent] = useState(template?.content || '');
     const [images, setImages] = useState<TemplateImage[]>(template?.images || []);
+    const [isPublic, setIsPublic] = useState(template?.isPublic ?? false);
     const [showUrlInput, setShowUrlInput] = useState(false);
     const [urlValue, setUrlValue] = useState('');
     const [urlCaption, setUrlCaption] = useState('');
@@ -73,6 +74,7 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
             headerText: headerText.trim(),
             content: content.trim(),
             images,
+            isPublic,
         });
     };
 
@@ -255,7 +257,7 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
             </div>
 
             {/* Actions */}
-            <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
+            <div className="p-4 border-t bg-gray-50 flex justify-between items-center gap-4">
                 <button
                     onClick={onCancel}
                     className="flex items-center gap-1.5 px-4 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
@@ -263,10 +265,25 @@ export function TemplateEditor({ template, onSave, onCancel }: TemplateEditorPro
                     <ArrowLeft className="w-4 h-4" />
                     Отмена
                 </button>
+
+                {/* Public toggle */}
+                <button
+                    type="button"
+                    onClick={() => setIsPublic(p => !p)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all ${isPublic
+                            ? 'bg-teal-50 border-teal-300 text-teal-700 hover:bg-teal-100'
+                            : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                        }`}
+                    title={isPublic ? 'Шаблон виден всем врачам. Нажмите чтобы сделать личным.' : 'Нажмите чтобы поделиться с коллегами'}
+                >
+                    {isPublic ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                    {isPublic ? 'Общий' : 'Личный'}
+                </button>
+
                 <button
                     onClick={handleSubmit}
                     disabled={!isValid}
-                    className="flex items-center gap-1.5 px-5 py-2.5 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex items-center gap-1.5 px-5 py-2.5 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ml-auto"
                 >
                     <Save className="w-4 h-4" />
                     {template ? 'Сохранить изменения' : 'Создать шаблон'}
