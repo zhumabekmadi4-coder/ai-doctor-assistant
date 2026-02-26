@@ -49,8 +49,8 @@ export async function POST(req: Request) {
         }
 
         // Validate file type
-        if (!ALLOWED_AUDIO_TYPES.includes(audioFile.type)) {
-            return NextResponse.json({ error: 'Invalid file type. Audio files only.' }, { status: 415 });
+        if (!audioFile.type.startsWith('audio/')) {
+            return NextResponse.json({ error: `Invalid file type: ${audioFile.type}. Audio files only.` }, { status: 415 });
         }
 
         console.log(`[API] Received audio file: ${audioFile.name}, size: ${audioFile.size}, type: ${audioFile.type}`);

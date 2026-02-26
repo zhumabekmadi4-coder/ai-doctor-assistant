@@ -126,7 +126,7 @@ export default function TemplatesPage() {
         }
 
         const myTemplates = templates.filter(t => t.authorLogin === userLogin);
-        const sharedTemplates = templates.filter(t => t.isPublic && t.authorLogin !== userLogin);
+        const sharedTemplates = templates.filter(t => t.isPublic);
 
         return (
                 <div className="min-h-screen bg-gray-50">

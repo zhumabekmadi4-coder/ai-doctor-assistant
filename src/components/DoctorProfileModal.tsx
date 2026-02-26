@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, GripVertical } from 'lucide-react';
 
 export interface CustomField {
     label: string;
@@ -17,6 +17,7 @@ export interface DoctorProfile {
     whatsapp?: string;
     telegram?: string;
     customFields?: CustomField[];
+    customProcedures?: string[];
 }
 
 interface DoctorProfileModalProps {
@@ -32,18 +33,33 @@ const DEFAULT_FIELDS: CustomField[] = [
     { label: 'WhatsApp', value: '' },
 ];
 
+const DEFAULT_PROCEDURES_LIST = [
+    'HILT (высокоинтенсивная лазеротерапия)',
+    'SIS (высокоинтенсивная магнитотерапия)',
+    'УВТ (Ударно-волновая терапия)',
+    'ИРТ (иглорефлексотерапия)',
+    'ВТЭС (внутритканевая электростимуляция)',
+    'PRP (плазматерапия)',
+    'Кинезиотерапия',
+];
+
 export function DoctorProfileModal({ isOpen, onClose, onSave, initialProfile }: DoctorProfileModalProps) {
     const [profile, setProfile] = useState(initialProfile);
     const [customFields, setCustomFields] = useState<CustomField[]>(
         initialProfile.customFields?.length ? initialProfile.customFields : DEFAULT_FIELDS
     );
     const [newLabel, setNewLabel] = useState('');
+    const [procedures, setProcedures] = useState<string[]>(
+        initialProfile.customProcedures ?? DEFAULT_PROCEDURES_LIST
+    );
+    const [newProcedure, setNewProcedure] = useState('');
 
     useEffect(() => {
         setProfile(initialProfile);
         setCustomFields(
             initialProfile.customFields?.length ? initialProfile.customFields : DEFAULT_FIELDS
         );
+        setProcedures(initialProfile.customProcedures ?? DEFAULT_PROCEDURES_LIST);
     }, [initialProfile]);
 
     const updateField = (index: number, value: string) => {
@@ -61,8 +77,19 @@ export function DoctorProfileModal({ isOpen, onClose, onSave, initialProfile }: 
         setNewLabel('');
     };
 
+    const addProcedure = () => {
+        const name = newProcedure.trim();
+        if (!name || procedures.includes(name)) return;
+        setProcedures(prev => [...prev, name]);
+        setNewProcedure('');
+    };
+
+    const removeProcedure = (index: number) => {
+        setProcedures(prev => prev.filter((_, i) => i !== index));
+    };
+
     const handleSave = () => {
-        onSave({ ...profile, customFields: customFields.filter(f => f.label.trim()) });
+        onSave({ ...profile, customFields: customFields.filter(f => f.label.trim()), customProcedures: procedures });
     };
 
     if (!isOpen) return null;
@@ -198,6 +225,50 @@ export function DoctorProfileModal({ isOpen, onClose, onSave, initialProfile }: 
                         </button>
                     </div>
                     <p className="text-xs text-gray-400">Введите название и нажмите + или Enter</p>
+
+                    {/* Procedures */}
+                    <div className="border-t pt-3 mt-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Процедуры в листе назначений</label>
+                        <p className="text-xs text-gray-400 mb-3">Список процедур, которые отображаются при составлении консультации</p>
+                        <div className="space-y-1 mb-3">
+                            {procedures.map((proc, idx) => (
+                                <div key={idx} className="flex items-center gap-2 py-1 px-2 bg-slate-50 rounded-lg border border-slate-100">
+                                    <GripVertical className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                                    <span className="flex-1 text-sm text-gray-700">{proc}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeProcedure(idx)}
+                                        className="p-1 text-gray-300 hover:text-red-500 transition-colors rounded"
+                                        title="Убрать процедуру"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                            {procedures.length === 0 && (
+                                <p className="text-xs text-gray-400 italic py-2 text-center">Нет процедур — добавьте ниже</p>
+                            )}
+                        </div>
+                        <div className="flex items-end gap-2">
+                            <input
+                                type="text"
+                                value={newProcedure}
+                                onChange={(e) => setNewProcedure(e.target.value)}
+                                placeholder="Название процедуры, например: МРТ"
+                                className="flex-1 p-2 border rounded-md text-sm border-dashed"
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addProcedure(); } }}
+                            />
+                            <button
+                                type="button"
+                                onClick={addProcedure}
+                                disabled={!newProcedure.trim()}
+                                className="p-2 text-teal-600 hover:bg-teal-50 rounded-md transition-colors disabled:text-gray-300 disabled:hover:bg-transparent"
+                                title="Добавить процедуру"
+                            >
+                                <Plus className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="flex justify-end gap-2 mt-6">

@@ -2,13 +2,17 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 // GET /api/auth/google — initiates Google OAuth flow
-export async function GET() {
+// Optional query param: ?link_login=<login> to link Google to existing account
+export async function GET(req: Request) {
     const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
     const appUrl = process.env.APP_URL || 'http://localhost:3000';
 
     if (!clientId) {
         return NextResponse.json({ error: 'Google OAuth not configured' }, { status: 500 });
     }
+
+    const { searchParams } = new URL(req.url);
+    const linkLogin = searchParams.get('link_login');
 
     // Generate a random state value to prevent CSRF
     const state = crypto.randomBytes(16).toString('hex');
@@ -34,5 +38,16 @@ export async function GET() {
         path: '/',
         sameSite: 'lax',
     });
+
+    // If linking mode, store the login to link in a cookie
+    if (linkLogin) {
+        response.cookies.set('_oauth_link_login', linkLogin, {
+            httpOnly: true,
+            maxAge: 300,
+            path: '/',
+            sameSite: 'lax',
+        });
+    }
+
     return response;
 }

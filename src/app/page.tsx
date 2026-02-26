@@ -381,9 +381,10 @@ function HomeContent() {
         setTokenBalance(data.tokenBalance);
         checkTokenWarning(data.tokenBalance);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Analysis error:', error);
-      alert('Ошибка анализа записи');
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Ошибка анализа записи: ${msg}`);
     } finally {
       setIsAnalyzing(false);
     }
@@ -414,9 +415,10 @@ function HomeContent() {
         setTokenBalance(data.tokenBalance);
         checkTokenWarning(data.tokenBalance);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Additional analysis error:', error);
-      alert('Ошибка анализа записи');
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Ошибка анализа записи: ${msg}`);
     } finally {
       setIsAdditionalAnalyzing(false);
     }
