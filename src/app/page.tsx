@@ -164,8 +164,10 @@ function HomeContent() {
       document.cookie = '_gsession=; Max-Age=0; Path=/';
       document.cookie = '_guser=; Max-Age=0; Path=/';
       try {
+        // Both cookies are URL-encoded by Next.js — decode before use
+        const rawToken = decodeURIComponent(googleToken);
         const userData = JSON.parse(atob(decodeURIComponent(googleUser)));
-        setSessionToken(googleToken);
+        setSessionToken(rawToken);
         localStorage.setItem('doctorSession', JSON.stringify({
           login: userData.login,
           username: userData.login,
