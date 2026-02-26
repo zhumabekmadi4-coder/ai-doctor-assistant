@@ -2,15 +2,30 @@ import { getOpenAI } from '@/lib/openai';
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { sql } from '@/lib/db';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // App Router: use nodejs runtime for large file uploads
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+const MAX_AUDIO_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
+const ALLOWED_AUDIO_TYPES = [
+    'audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav',
+    'audio/ogg', 'audio/flac', 'audio/x-m4a', 'audio/aac',
+];
+
 export async function POST(req: Request) {
     // Auth guard
     const authResult = requireAuth(req);
     if (authResult instanceof Response) return authResult;
+
+    // Rate limit: 30 requests per hour per user
+    if (!checkRateLimit(`analyze:${authResult.login}`, 30, 60 * 60 * 1000)) {
+        return NextResponse.json(
+            { error: 'Слишком много запросов. Подождите немного.' },
+            { status: 429 }
+        );
+    }
 
     // Check token balance before doing any work
     const userRows = await sql`SELECT tokens_balance FROM users WHERE login = ${authResult.login}`;
@@ -28,7 +43,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
         }
 
-        console.log(`[API] Received audio file: ${audioFile.name}, size: ${audioFile.size}`);
+        // Validate file size
+        if (audioFile.size > MAX_AUDIO_SIZE_BYTES) {
+            return NextResponse.json({ error: 'File too large (max 25 MB)' }, { status: 413 });
+        }
+
+        // Validate file type
+        if (!ALLOWED_AUDIO_TYPES.includes(audioFile.type)) {
+            return NextResponse.json({ error: 'Invalid file type. Audio files only.' }, { status: 415 });
+        }
+
+        console.log(`[API] Received audio file: ${audioFile.name}, size: ${audioFile.size}, type: ${audioFile.type}`);
 
         // 1. Transcribe with Whisper
         const transcription = await openai.audio.transcriptions.create({

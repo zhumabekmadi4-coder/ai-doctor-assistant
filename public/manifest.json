@@ -1,0 +1,41 @@
+{
+  "name": "JAZai Doc — Медицинский ассистент",
+  "short_name": "JAZai Doc",
+  "description": "Голосовой ИИ-ассистент для врачей. Запись и автоматический анализ консультаций.",
+  "start_url": "/mobile",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8fafc",
+  "theme_color": "#0d9488",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/jazai-symbol.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Новая запись",
+      "short_name": "Запись",
+      "description": "Начать новую консультацию",
+      "url": "/mobile",
+      "icons": [{ "src": "/jazai-symbol.svg", "sizes": "any" }]
+    }
+  ]
+}

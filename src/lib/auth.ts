@@ -2,7 +2,23 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
 const SALT_ROUNDS = 12;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'jazai-doc-secret-change-in-prod';
+
+// Lazy getter — called at request time, not at build/module-init time.
+// In production, throws if SESSION_SECRET is not set.
+function getSessionSecret(): string {
+    const secret = process.env.SESSION_SECRET;
+    if (!secret) {
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('SESSION_SECRET environment variable is required in production');
+        }
+        // Dev-only fallback — never reached in production
+        return 'jazai-dev-only-not-for-production-use';
+    }
+    if (secret.length < 32) {
+        console.warn('[auth] SESSION_SECRET is too short — use at least 32 random characters');
+    }
+    return secret;
+}
 
 // ─── Password Hashing (bcrypt) ────────────────────────────
 
@@ -37,9 +53,10 @@ export interface SessionPayload {
 }
 
 export function signSession(data: SessionPayload): string {
+    const secret = getSessionSecret();
     const payload = JSON.stringify(data);
     const signature = crypto
-        .createHmac('sha256', SESSION_SECRET)
+        .createHmac('sha256', secret)
         .update(payload)
         .digest('hex');
     return Buffer.from(JSON.stringify({ p: payload, s: signature })).toString('base64');
@@ -47,11 +64,12 @@ export function signSession(data: SessionPayload): string {
 
 export function verifySession(token: string): SessionPayload | null {
     try {
+        const secret = getSessionSecret();
         const { p: payload, s: signature } = JSON.parse(
             Buffer.from(token, 'base64').toString()
         );
         const expected = crypto
-            .createHmac('sha256', SESSION_SECRET)
+            .createHmac('sha256', secret)
             .update(payload)
             .digest('hex');
         if (signature !== expected) return null;
