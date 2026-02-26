@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
-import { Mic, Square, Save, FileText, Loader2, Printer, Edit2, LogOut, Users, QrCode, Shield, LayoutTemplate, Plus, X, ArrowLeft, CreditCard } from 'lucide-react';
+import { Mic, Square, Save, FileText, Loader2, Printer, Edit2, LogOut, Users, QrCode, Shield, LayoutTemplate, Plus, X, ArrowLeft, CreditCard, Link } from 'lucide-react';
 import { DoctorProfileModal, CustomField } from '@/components/DoctorProfileModal';
 import { LoginScreen } from '@/components/LoginScreen';
 import { QRModal } from '@/components/QRModal';
@@ -51,8 +51,9 @@ const PROCEDURE_KEY_MAP: Record<string, string> = {
   'Кинезиотерапия': 'Кинезиотерапия',
 };
 
-function mapAIProcedures(aiProcs: Record<string, number>): Procedure[] {
-  return DEFAULT_PROCEDURES.map(name => {
+function mapAIProcedures(aiProcs: Record<string, number>, proceduresList?: string[]): Procedure[] {
+  const list = proceduresList ?? DEFAULT_PROCEDURES;
+  return list.map(name => {
     const shortKey = Object.keys(PROCEDURE_KEY_MAP).find(k => PROCEDURE_KEY_MAP[k] === name);
     return { name, quantity: shortKey ? (aiProcs[shortKey] ?? 0) : 0 };
   });
@@ -86,6 +87,7 @@ interface DoctorProfile {
   whatsapp?: string;
   telegram?: string;
   customFields?: CustomField[];
+  customProcedures?: string[];
 }
 
 function HomeContent() {
@@ -100,11 +102,12 @@ function HomeContent() {
   const [isQROpen, setIsQROpen] = useState(false);
   const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
   const [attachedTemplates, setAttachedTemplates] = useState<AttachedTemplate[]>([]);
-    const [selectorTemplates, setSelectorTemplates] = useState<import('@/lib/templates').Template[]>([]);
+  const [selectorTemplates, setSelectorTemplates] = useState<import('@/lib/templates').Template[]>([]);
   const [showCoupons, setShowCoupons] = useState(false);
   const [remainingCredits, setRemainingCredits] = useState<number | null>(null);
   const [tokenBalance, setTokenBalance] = useState<number | null>(null);
   const [tokenWarning, setTokenWarning] = useState<0 | 1 | 5 | null>(null);
+  const [googleLinkedMessage, setGoogleLinkedMessage] = useState<string | null>(null);
   const [isContinuingRecording, setIsContinuingRecording] = useState(false);
   const [isAdditionalAnalyzing, setIsAdditionalAnalyzing] = useState(false);
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfile>({
@@ -140,11 +143,24 @@ function HomeContent() {
 
   // Init: auth check, profile load, patient from sessionStorage, mobile listener
   useEffect(() => {
+    // Check for Google link/error URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('google_linked') === '1') {
+      setGoogleLinkedMessage('Google аккаунт успешно привязан!');
+      window.history.replaceState({}, '', '/');
+      setTimeout(() => setGoogleLinkedMessage(null), 4000);
+    }
+    if (urlParams.get('auth_error') === 'google_already_linked') {
+      setGoogleLinkedMessage('Этот Google аккаунт уже привязан к другому пользователю');
+      window.history.replaceState({}, '', '/');
+      setTimeout(() => setGoogleLinkedMessage(null), 4000);
+    }
+
     // Check for Google OAuth session cookie
     const googleToken = getCookie('_gsession');
     const googleUser = getCookie('_guser');
     if (googleToken && googleUser) {
-      // Clear cookies
+      // Clear cookies immediately
       document.cookie = '_gsession=; Max-Age=0; Path=/';
       document.cookie = '_guser=; Max-Age=0; Path=/';
       try {
@@ -158,7 +174,12 @@ function HomeContent() {
           role: userData.role,
           loginTime: new Date().toISOString(),
         }));
-      } catch { }
+        // Reload so the page re-initialises with localStorage already populated
+        window.location.replace('/');
+        return;
+      } catch (e) {
+        console.error('[Google Auth] Failed to parse session cookie:', e);
+      }
     }
 
     // Auth
@@ -236,7 +257,11 @@ function HomeContent() {
         const p = JSON.parse(patientRaw);
 
         // Extract procedures from treatment text if exists (e.g. "Процедуры: HILT: 5, УВТ: 3")
-        const loadedProcedures = DEFAULT_PROCEDURES.map(name => ({ name, quantity: 0 }));
+        // Use doctor's custom procedure list if available (read from localStorage directly since state not yet updated)
+        const savedProfileRaw = localStorage.getItem(`doctorProfile_${JSON.parse(session || '{}').login || ''}`);
+        const savedProfile = savedProfileRaw ? JSON.parse(savedProfileRaw) : null;
+        const activeProcedures = savedProfile?.customProcedures ?? DEFAULT_PROCEDURES;
+        const loadedProcedures = activeProcedures.map((name: string) => ({ name, quantity: 0 }));
         if (p.treatment && p.treatment.includes('Процедуры:')) {
           const parts = p.treatment.split('Процедуры:');
           // The first part is the actual treatment text, the second is the procedures list
@@ -252,7 +277,7 @@ function HomeContent() {
               if (match) {
                 const [, pName, pQuantity] = match;
                 // Find matching procedure in loadedProcedures
-                const existing = loadedProcedures.find(lp => lp.name === pName.trim());
+                const existing = loadedProcedures.find((lp: Procedure) => lp.name === pName.trim());
                 if (existing) {
                   existing.quantity = parseInt(pQuantity, 10);
                 }
@@ -281,9 +306,12 @@ function HomeContent() {
     const handleMobileAnalysis = (e: Event) => {
       const data = (e as CustomEvent).detail;
       if (!data) return;
+      const sess = localStorage.getItem('doctorSession');
+      const login = sess ? JSON.parse(sess).login : '';
+      const savedProf = login ? JSON.parse(localStorage.getItem(`doctorProfile_${login}`) || 'null') : null;
       setResult({
         ...data,
-        procedures: mapAIProcedures(data.procedures || {}),
+        procedures: mapAIProcedures(data.procedures || {}, savedProf?.customProcedures),
       });
     };
     window.addEventListener('mobileAnalysisDone', handleMobileAnalysis);
@@ -317,6 +345,15 @@ function HomeContent() {
     if (userLogin) {
       localStorage.setItem(`doctorProfile_${userLogin}`, JSON.stringify(newProfile));
     }
+    // If there's an active result, sync procedure list with new profile (preserve existing quantities)
+    if (result) {
+      const newList = newProfile.customProcedures ?? DEFAULT_PROCEDURES;
+      const updatedProcedures = newList.map(name => {
+        const existing = result.procedures.find(p => p.name === name);
+        return { name, quantity: existing?.quantity ?? 0 };
+      });
+      setResult({ ...result, procedures: updatedProcedures });
+    }
     setIsProfileOpen(false);
   };
 
@@ -336,7 +373,7 @@ function HomeContent() {
       const data = await response.json();
       setResult({
         ...data.analysis,
-        procedures: mapAIProcedures(data.analysis.procedures || {}),
+        procedures: mapAIProcedures(data.analysis.procedures || {}, doctorProfile.customProcedures),
       });
       if (typeof data.tokenBalance === 'number') {
         setTokenBalance(data.tokenBalance);
@@ -366,7 +403,7 @@ function HomeContent() {
       const data = await response.json();
       const newData: AnalysisResult = {
         ...data.analysis,
-        procedures: mapAIProcedures(data.analysis.procedures || {}),
+        procedures: mapAIProcedures(data.analysis.procedures || {}, doctorProfile.customProcedures),
       };
       setResult(mergeResults(result, newData));
       setIsContinuingRecording(false);
@@ -533,6 +570,14 @@ function HomeContent() {
               )}
 
               <button
+                onClick={() => { window.location.href = `/api/auth/google?link_login=${encodeURIComponent(userLogin)}`; }}
+                className="flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors text-sm font-medium"
+                title="Привязать Google аккаунт"
+              >
+                <Link className="w-4 h-4" />
+                <span>Google</span>
+              </button>
+              <button
                 onClick={handleLogout}
                 className="flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium"
                 title="Выйти"
@@ -645,8 +690,8 @@ function HomeContent() {
                         Новый
                       </button>
                       <button
-            onClick={() => { getTemplates(userLogin).then(setSelectorTemplates); setIsTemplateSelectorOpen(true); }}
-className="btn-secondary flex items-center gap-1 text-xs px-3 py-1.5 text-teal-700 border-teal-200 hover:bg-teal-50 bg-white"
+                        onClick={() => { getTemplates(userLogin).then(setSelectorTemplates); setIsTemplateSelectorOpen(true); }}
+                        className="btn-secondary flex items-center gap-1 text-xs px-3 py-1.5 text-teal-700 border-teal-200 hover:bg-teal-50 bg-white"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         Шаблон
@@ -940,7 +985,7 @@ className="btn-secondary flex items-center gap-1 text-xs px-3 py-1.5 text-teal-7
                       </p>
                     </div>
                     {at.content && (
-                      <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed mb-4 print:mb-6">
+                      <div className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-4 print:mb-6 max-w-full overflow-hidden">
                         {at.content}
                       </div>
                     )}
