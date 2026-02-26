@@ -957,9 +957,7 @@ function HomeContent() {
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-col items-center">
-                        <img src="/footer_qr.jpg" alt="Info" className="w-24 h-24 object-contain mb-1 print:max-w-[calc(100%-20mm)]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                      </div>
+
                     </div>
 
                     {/* JAZai branding - Print Only */}
@@ -1025,9 +1023,7 @@ function HomeContent() {
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-col items-center">
-                        <img src="/footer_qr.jpg" alt="Info" className="w-24 h-24 object-contain mb-1 print:w-16 print:h-16 print:max-w-[calc(100%-20mm)]" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                      </div>
+
                     </div>
 
                     {/* JAZai branding for template pages - Print Only */}
