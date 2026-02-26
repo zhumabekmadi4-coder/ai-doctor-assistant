@@ -26,6 +26,9 @@ export async function GET(req: Request) {
         return NextResponse.redirect(`${appUrl}/?auth_error=invalid_state`);
     }
 
+    // Check if this is a link-account flow
+    const linkLogin = cookieHeader.split(';').find(c => c.trim().startsWith('_oauth_link_login='))?.split('=')[1]?.trim();
+
     const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID!;
     const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET!;
     const redirectUri = `${appUrl}/api/auth/google/callback`;
@@ -61,12 +64,32 @@ export async function GET(req: Request) {
         }
 
         const googleUser = await userInfoRes.json();
-        const { id: googleId, email, name: displayName } = googleUser;
+        const { id: googleId, email } = googleUser;
 
         if (!email) {
             return NextResponse.redirect(`${appUrl}/?auth_error=no_email`);
         }
 
+        // ── Link mode: attach Google to existing account ──
+        if (linkLogin) {
+            // Check if this google_id is already used by another account
+            const existing = await sql`SELECT login FROM users WHERE google_id = ${googleId} LIMIT 1`;
+            if (existing.length > 0 && existing[0].login !== linkLogin) {
+                const response = NextResponse.redirect(`${appUrl}/?auth_error=google_already_linked`);
+                response.cookies.set('_oauth_link_login', '', { maxAge: 0, path: '/' });
+                response.cookies.set('_oauth_state', '', { maxAge: 0, path: '/' });
+                return response;
+            }
+
+            await sql`UPDATE users SET google_id = ${googleId}, email = ${email} WHERE login = ${linkLogin}`;
+
+            const response = NextResponse.redirect(`${appUrl}/?google_linked=1`);
+            response.cookies.set('_oauth_link_login', '', { maxAge: 0, path: '/' });
+            response.cookies.set('_oauth_state', '', { maxAge: 0, path: '/' });
+            return response;
+        }
+
+        // ── Normal login/register flow ──
         // Find or create user
         let userRows = await sql`
             SELECT login, name, specialty, role, active
@@ -79,7 +102,7 @@ export async function GET(req: Request) {
 
         if (!user) {
             // Create new doctor account
-            // Derive login from email prefix, ensure uniqueness
+            const displayName = googleUser.name;
             const baseLogin = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '_');
             let login = baseLogin;
             let attempt = 0;
@@ -126,13 +149,13 @@ export async function GET(req: Request) {
         const response = NextResponse.redirect(`${appUrl}/`);
         response.cookies.set('_gsession', sessionToken, {
             httpOnly: false,
-            maxAge: 60,
+            maxAge: 86400, // 24 hours
             path: '/',
             sameSite: 'lax',
         });
         response.cookies.set('_guser', userData, {
             httpOnly: false,
-            maxAge: 60,
+            maxAge: 86400, // 24 hours
             path: '/',
             sameSite: 'lax',
         });
