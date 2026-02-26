@@ -164,7 +164,7 @@ function HomeContent() {
       document.cookie = '_gsession=; Max-Age=0; Path=/';
       document.cookie = '_guser=; Max-Age=0; Path=/';
       try {
-        const userData = JSON.parse(atob(googleUser));
+        const userData = JSON.parse(atob(decodeURIComponent(googleUser)));
         setSessionToken(googleToken);
         localStorage.setItem('doctorSession', JSON.stringify({
           login: userData.login,
