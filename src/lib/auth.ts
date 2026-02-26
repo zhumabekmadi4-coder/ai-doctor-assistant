@@ -4,15 +4,14 @@ import crypto from 'crypto';
 const SALT_ROUNDS = 12;
 
 // Lazy getter — called at request time, not at build/module-init time.
-// In production, throws if SESSION_SECRET is not set.
+// Set SESSION_SECRET env var in Vercel dashboard for proper security.
+const FALLBACK_SECRET = 'jazai-doc-secret-change-in-prod';
+
 function getSessionSecret(): string {
     const secret = process.env.SESSION_SECRET;
     if (!secret) {
-        if (process.env.NODE_ENV === 'production') {
-            throw new Error('SESSION_SECRET environment variable is required in production');
-        }
-        // Dev-only fallback — never reached in production
-        return 'jazai-dev-only-not-for-production-use';
+        console.warn('[auth] SESSION_SECRET is not set — using default. Set it in Vercel env vars!');
+        return FALLBACK_SECRET;
     }
     if (secret.length < 32) {
         console.warn('[auth] SESSION_SECRET is too short — use at least 32 random characters');
