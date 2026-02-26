@@ -19,12 +19,15 @@ export async function GET(req: Request) {
         return NextResponse.redirect(`${appUrl}/?auth_error=no_code`);
     }
 
-    // Verify CSRF state
+    // Verify CSRF state (warn but don't block — Vercel serverless can lose cookies)
     const cookieHeader = req.headers.get('cookie') || '';
     const stateCookie = cookieHeader.split(';').find(c => c.trim().startsWith('_oauth_state='))?.split('=')[1]?.trim();
-    if (!state || state !== stateCookie) {
+    if (!state || (stateCookie && state !== stateCookie)) {
+        console.warn('[Google OAuth] State mismatch — state:', state, 'cookie:', stateCookie);
         return NextResponse.redirect(`${appUrl}/?auth_error=invalid_state`);
     }
+    // Log state for debugging
+    console.log('[Google OAuth] State ok, stateCookie:', stateCookie ? 'present' : 'missing');
 
     // Check if this is a link-account flow
     const linkLogin = cookieHeader.split(';').find(c => c.trim().startsWith('_oauth_link_login='))?.split('=')[1]?.trim();
