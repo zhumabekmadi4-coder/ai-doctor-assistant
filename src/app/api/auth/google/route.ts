@@ -13,6 +13,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const linkLogin = searchParams.get('link_login');
+    const mode = searchParams.get('mode'); // 'register' | null (login by default)
 
     // Generate a random state value to prevent CSRF
     const state = crypto.randomBytes(16).toString('hex');
@@ -42,6 +43,16 @@ export async function GET(req: Request) {
     // If linking mode, store the login to link in a cookie
     if (linkLogin) {
         response.cookies.set('_oauth_link_login', linkLogin, {
+            httpOnly: true,
+            maxAge: 300,
+            path: '/',
+            sameSite: 'lax',
+        });
+    }
+
+    // If register mode, store it in a cookie so callback knows what to do
+    if (mode === 'register') {
+        response.cookies.set('_oauth_mode', 'register', {
             httpOnly: true,
             maxAge: 300,
             path: '/',

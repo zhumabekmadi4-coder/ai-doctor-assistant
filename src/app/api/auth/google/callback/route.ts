@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { signSession } from '@/lib/auth';
+import { signSession, signGoogleTemp } from '@/lib/auth';
 
 // GET /api/auth/google/callback — handles Google OAuth callback
 export async function GET(req: Request) {
@@ -26,9 +26,10 @@ export async function GET(req: Request) {
         console.warn('[Google OAuth] State mismatch — state:', state, 'cookie:', stateCookie);
         return NextResponse.redirect(`${appUrl}/?auth_error=invalid_state`);
     }
-    // Log state for debugging
     console.log('[Google OAuth] State ok, stateCookie:', stateCookie ? 'present' : 'missing');
 
+    // Read flow mode from cookie
+    const mode = cookieHeader.split(';').find(c => c.trim().startsWith('_oauth_mode='))?.split('=')[1]?.trim();
     // Check if this is a link-account flow
     const linkLogin = cookieHeader.split(';').find(c => c.trim().startsWith('_oauth_link_login='))?.split('=')[1]?.trim();
 
@@ -75,7 +76,6 @@ export async function GET(req: Request) {
 
         // ── Link mode: attach Google to existing account ──
         if (linkLogin) {
-            // Check if this google_id is already used by another account
             const existing = await sql`SELECT login FROM users WHERE google_id = ${googleId} LIMIT 1`;
             if (existing.length > 0 && existing[0].login !== linkLogin) {
                 const response = NextResponse.redirect(`${appUrl}/?auth_error=google_already_linked`);
@@ -92,41 +92,50 @@ export async function GET(req: Request) {
             return response;
         }
 
-        // ── Normal login/register flow ──
-        // Find or create user
-        let userRows = await sql`
+        // ── Register mode: new doctor signs up via Google ──
+        if (mode === 'register') {
+            // Check if this Google account is already registered
+            const existing = await sql`SELECT login FROM users WHERE google_id = ${googleId} OR email = ${email} LIMIT 1`;
+            if (existing.length > 0) {
+                const response = NextResponse.redirect(`${appUrl}/?auth_error=already_registered`);
+                response.cookies.set('_oauth_mode', '', { maxAge: 0, path: '/' });
+                response.cookies.set('_oauth_state', '', { maxAge: 0, path: '/' });
+                return response;
+            }
+
+            // Sign a short-lived temp token with Google data for the registration page
+            const tempToken = signGoogleTemp({
+                name: googleUser.name || '',
+                email,
+                googleId,
+            });
+
+            const response = NextResponse.redirect(
+                `${appUrl}/register?token=${encodeURIComponent(tempToken)}&name=${encodeURIComponent(googleUser.name || '')}&email=${encodeURIComponent(email)}`
+            );
+            response.cookies.set('_oauth_mode', '', { maxAge: 0, path: '/' });
+            response.cookies.set('_oauth_state', '', { maxAge: 0, path: '/' });
+            return response;
+        }
+
+        // ── Login mode: find existing user by google_id or email ──
+        const userRows = await sql`
             SELECT login, name, specialty, role, active
             FROM users
             WHERE google_id = ${googleId} OR (email = ${email} AND google_id IS NULL)
             LIMIT 1
         `;
 
-        let user = userRows[0];
+        const user = userRows[0];
 
         if (!user) {
-            // Create new doctor account
-            const displayName = googleUser.name;
-            const baseLogin = email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, '_');
-            let login = baseLogin;
-            let attempt = 0;
-            while (attempt < 10) {
-                const existing = await sql`SELECT 1 FROM users WHERE login = ${login}`;
-                if (existing.length === 0) break;
-                attempt++;
-                login = `${baseLogin}_${attempt}`;
-            }
+            // Account not found — tell the user to register first
+            return NextResponse.redirect(`${appUrl}/?auth_error=not_registered`);
+        }
 
-            const newRows = await sql`
-                INSERT INTO users (login, password_hash, name, email, google_id, role, active, tokens_balance)
-                VALUES (${login}, '', ${displayName || login}, ${email}, ${googleId}, 'doctor', true, 15)
-                RETURNING login, name, specialty, role, active
-            `;
-            user = newRows[0];
-        } else {
-            // Update google_id if missing (linking existing account by email)
-            if (!user.google_id) {
-                await sql`UPDATE users SET google_id = ${googleId} WHERE login = ${user.login}`;
-            }
+        // Link google_id if it was matched by email only
+        if (!user.google_id) {
+            await sql`UPDATE users SET google_id = ${googleId} WHERE login = ${user.login}`;
         }
 
         if (!user.active) {
@@ -148,21 +157,19 @@ export async function GET(req: Request) {
             role: user.role || 'doctor',
         }));
 
-        // Set session cookies and redirect
         const response = NextResponse.redirect(`${appUrl}/`);
         response.cookies.set('_gsession', sessionToken, {
             httpOnly: false,
-            maxAge: 86400, // 24 hours
+            maxAge: 86400,
             path: '/',
             sameSite: 'lax',
         });
         response.cookies.set('_guser', userData, {
             httpOnly: false,
-            maxAge: 86400, // 24 hours
+            maxAge: 86400,
             path: '/',
             sameSite: 'lax',
         });
-        // Clear CSRF cookie
         response.cookies.set('_oauth_state', '', { maxAge: 0, path: '/' });
 
         return response;

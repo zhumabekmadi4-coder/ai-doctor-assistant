@@ -108,6 +108,7 @@ function HomeContent() {
   const [tokenBalance, setTokenBalance] = useState<number | null>(null);
   const [tokenWarning, setTokenWarning] = useState<0 | 1 | 5 | null>(null);
   const [googleLinkedMessage, setGoogleLinkedMessage] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | undefined>(undefined);
   const [isContinuingRecording, setIsContinuingRecording] = useState(false);
   const [isAdditionalAnalyzing, setIsAdditionalAnalyzing] = useState(false);
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfile>({
@@ -154,6 +155,11 @@ function HomeContent() {
       setGoogleLinkedMessage('Этот Google аккаунт уже привязан к другому пользователю');
       window.history.replaceState({}, '', '/');
       setTimeout(() => setGoogleLinkedMessage(null), 4000);
+    }
+    const urlAuthError = urlParams.get('auth_error');
+    if (urlAuthError) {
+      setAuthError(urlAuthError);
+      window.history.replaceState({}, '', '/');
     }
 
     // Check for Google OAuth session cookie
@@ -327,7 +333,7 @@ function HomeContent() {
   };
 
   if (!isLoggedIn) {
-    return <LoginScreen onLogin={(username, role, name, specialty) => {
+    return <LoginScreen authError={authError} onLogin={(username, role, name, specialty) => {
       setIsLoggedIn(true);
       setUserRole(role);
       setUserLogin(username);

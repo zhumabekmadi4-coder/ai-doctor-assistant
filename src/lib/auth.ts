@@ -78,6 +78,37 @@ export function verifySession(token: string): SessionPayload | null {
     }
 }
 
+// ─── Google Registration Temp Token ───────────────────────
+
+export interface GoogleTempPayload {
+    name: string;
+    email: string;
+    googleId: string;
+}
+
+/** Sign a short-lived token carrying Google OAuth data for the registration flow. */
+export function signGoogleTemp(data: GoogleTempPayload): string {
+    const secret = getSessionSecret();
+    const payload = JSON.stringify({ ...data, exp: Date.now() + 10 * 60 * 1000 }); // 10 min
+    const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+    return Buffer.from(JSON.stringify({ p: payload, s: signature })).toString('base64');
+}
+
+/** Verify temp token. Returns payload or null if invalid/expired. */
+export function verifyGoogleTemp(token: string): GoogleTempPayload | null {
+    try {
+        const secret = getSessionSecret();
+        const { p: payload, s: signature } = JSON.parse(Buffer.from(token, 'base64').toString());
+        const expected = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+        if (signature !== expected) return null;
+        const data = JSON.parse(payload);
+        if (Date.now() > data.exp) return null;
+        return { name: data.name, email: data.email, googleId: data.googleId };
+    } catch {
+        return null;
+    }
+}
+
 // ─── Request Helpers ──────────────────────────────────────
 
 /**
