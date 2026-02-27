@@ -28,8 +28,11 @@ export async function GET(req: Request) {
     }
     console.log('[Google OAuth] State ok, stateCookie:', stateCookie ? 'present' : 'missing');
 
-    // Read flow mode from cookie
-    const mode = cookieHeader.split(';').find(c => c.trim().startsWith('_oauth_mode='))?.split('=')[1]?.trim();
+    // Parse mode from state param: "<random>:register" or just "<random>"
+    // This is reliable even when cookies are lost on Vercel serverless.
+    const stateParts = (state || '').split(':');
+    const mode = stateParts[1] || 'login'; // 'register' | 'login'
+
     // Check if this is a link-account flow
     const linkLogin = cookieHeader.split(';').find(c => c.trim().startsWith('_oauth_link_login='))?.split('=')[1]?.trim();
 
@@ -98,7 +101,6 @@ export async function GET(req: Request) {
             const existing = await sql`SELECT login FROM users WHERE google_id = ${googleId} OR email = ${email} LIMIT 1`;
             if (existing.length > 0) {
                 const response = NextResponse.redirect(`${appUrl}/?auth_error=already_registered`);
-                response.cookies.set('_oauth_mode', '', { maxAge: 0, path: '/' });
                 response.cookies.set('_oauth_state', '', { maxAge: 0, path: '/' });
                 return response;
             }
@@ -113,7 +115,6 @@ export async function GET(req: Request) {
             const response = NextResponse.redirect(
                 `${appUrl}/register?token=${encodeURIComponent(tempToken)}&name=${encodeURIComponent(googleUser.name || '')}&email=${encodeURIComponent(email)}`
             );
-            response.cookies.set('_oauth_mode', '', { maxAge: 0, path: '/' });
             response.cookies.set('_oauth_state', '', { maxAge: 0, path: '/' });
             return response;
         }
