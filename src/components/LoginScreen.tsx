@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Stethoscope, Eye, EyeOff } from 'lucide-react';
 import { setSessionToken } from '@/lib/client-auth';
 
@@ -34,8 +34,14 @@ export function LoginScreen({ onLogin, authError }: LoginScreenProps) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState(authError ? (AUTH_ERROR_MESSAGES[authError] || 'Ошибка входа через Google.') : '');
+    const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (authError) {
+            setError(AUTH_ERROR_MESSAGES[authError] || `Ошибка: ${authError}`);
+        }
+    }, [authError]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

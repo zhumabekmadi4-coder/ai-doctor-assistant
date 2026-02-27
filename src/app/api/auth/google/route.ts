@@ -18,9 +18,10 @@ export async function GET(req: Request) {
 
     // Encode mode into the state param so it survives the OAuth redirect
     // even if cookies are lost (Vercel serverless issue).
-    // Format: "<random_hex>:<mode>" or just "<random_hex>" for login.
+    // Format: "reg<random_hex>" for register, plain "<random_hex>" for login.
+    // Only alphanumeric characters — avoids any URL/cookie encoding issues.
     const random = crypto.randomBytes(16).toString('hex');
-    const stateValue = mode === 'register' ? `${random}:register` : random;
+    const stateValue = mode === 'register' ? `reg${random}` : random;
 
     const redirectUri = `${appUrl}/api/auth/google/callback`;
 

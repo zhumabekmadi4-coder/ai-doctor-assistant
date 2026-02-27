@@ -28,10 +28,9 @@ export async function GET(req: Request) {
     }
     console.log('[Google OAuth] State ok, stateCookie:', stateCookie ? 'present' : 'missing');
 
-    // Parse mode from state param: "<random>:register" or just "<random>"
-    // This is reliable even when cookies are lost on Vercel serverless.
-    const stateParts = (state || '').split(':');
-    const mode = stateParts[1] || 'login'; // 'register' | 'login'
+    // Parse mode from state param: "reg<random>" = register, "<random>" = login.
+    // Pure alphanumeric — no URL/cookie encoding issues.
+    const mode = state?.startsWith('reg') && state.length === 35 ? 'register' : 'login';
 
     // Check if this is a link-account flow
     const linkLogin = cookieHeader.split(';').find(c => c.trim().startsWith('_oauth_link_login='))?.split('=')[1]?.trim();
