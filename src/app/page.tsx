@@ -945,46 +945,14 @@ function HomeContent() {
                       </div>
                     )}
 
-                    {/* Footer - Print Only */}
-                    <div className="hidden print:flex flex-row justify-between items-end mt-8 pt-8 border-t border-gray-300">
-                      <div className="flex items-start gap-4">
-                        {doctorProfile.avatarUrl && (
-                          <img src={doctorProfile.avatarUrl} alt="Doctor" className="w-16 h-16 rounded-full object-cover border border-gray-200 print:max-w-[calc(100%-20mm)]" />
-                        )}
-                        <div className="text-sm">
-                          <p className="font-bold text-gray-900">{doctorProfile.name}</p>
-                          <p className="text-gray-600 italic">{doctorProfile.specialty}</p>
-                          {doctorProfile.customFields && doctorProfile.customFields.length > 0 && (
-                            <div className="mt-2 space-y-0.5 text-xs text-gray-600">
-                              {doctorProfile.customFields.filter(f => f.value).map((f, i) => (
-                                <p key={i}>{f.label}: {f.value}</p>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                    </div>
-
-                    {/* JAZai branding - Print Only */}
-                    <div className="hidden print:block mt-12 pt-6 border-t border-gray-200">
-                      <div className="flex flex-col items-center">
-                        <div className="flex items-center gap-2 mb-2">
-                          <img src="/jazai-symbol.svg" alt="JAZai Logo" className="w-8 h-8" />
-                          <span className="font-bold text-lg text-gray-900">
-                            <span className="font-black">JAZ</span><span className="text-teal-500">ai</span> Doc
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600 text-center">Сделано при помощи JAZai — интеллектуальный медицинский ассистент</p>
-                      </div>
-                    </div>
+                    {/* Footer moved to the end of the document */}
 
                   </div>
                 </main>
 
                 {/* Template pages for print */}
                 {attachedTemplates.map((at, idx) => (
-                  <div key={at.templateId + idx} className="hidden print:block print:w-full print:pr-[20mm] print:mt-12 print:pt-6 print:border-t border-gray-200 print:break-before-auto print:break-inside-avoid">
+                  <div key={at.templateId + idx} className="hidden print:block print:w-full print:pr-[20mm] print:mt-12 print:pt-6 print:border-t border-gray-200 print:break-before-auto">
                     {/* No header on template pages - only consultation sheet has header */}
                     <div className="text-left mb-4 border-b pb-2">
                       <h2 className="text-lg font-bold text-gray-900 uppercase tracking-widest mb-1">{at.name}</h2>
@@ -1012,40 +980,41 @@ function HomeContent() {
                         ))}
                       </div>
                     )}
-                    <div className="flex flex-row justify-between items-end mt-6 pt-4 border-t border-gray-300 print:mt-8 print:pt-4">
-                      <div className="flex items-start gap-4">
-                        {doctorProfile.avatarUrl && (
-                          <img src={doctorProfile.avatarUrl} alt="Doctor" className="w-16 h-16 rounded-full object-cover border border-gray-200" />
+                    {/* Footer moved to the end of the document */}
+                  </div>
+                ))}
+
+                {/* Unified Print Footer (Appears once at the end of the document) */}
+                <div className="hidden print:block w-full print:pr-[20mm] print:mt-12 print:pt-6 print:border-t border-gray-200 print:break-inside-avoid">
+                  <div className="flex flex-row justify-between items-end">
+                    <div className="flex items-start gap-4">
+                      {doctorProfile.avatarUrl && (
+                        <img src={doctorProfile.avatarUrl} alt="Doctor" className="w-16 h-16 rounded-full object-cover border border-gray-200 print:max-w-[calc(100%-20mm)]" />
+                      )}
+                      <div className="text-sm">
+                        <p className="font-bold text-gray-900">{doctorProfile.name}</p>
+                        <p className="text-gray-600 italic">{doctorProfile.specialty}</p>
+                        {doctorProfile.customFields && doctorProfile.customFields.length > 0 && (
+                          <div className="mt-2 space-y-0.5 text-xs text-gray-600">
+                            {doctorProfile.customFields.filter(f => f.value).map((f, i) => (
+                              <p key={i}>{f.label}: {f.value}</p>
+                            ))}
+                          </div>
                         )}
-                        <div className="text-sm">
-                          <p className="font-bold text-gray-900">{doctorProfile.name}</p>
-                          <p className="text-gray-600 italic">{doctorProfile.specialty}</p>
-                          {doctorProfile.customFields && doctorProfile.customFields.length > 0 && (
-                            <div className="mt-2 space-y-0.5 text-xs text-gray-600">
-                              {doctorProfile.customFields.filter(f => f.value).map((f, i) => (
-                                <p key={i}>{f.label}: {f.value}</p>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                    </div>
-
-                    {/* JAZai branding for template pages - Print Only */}
-                    <div className="hidden print:block mt-8 pt-4 border-t border-gray-200">
-                      <div className="flex flex-col items-center">
-                        <div className="flex items-center gap-2 mb-2">
-                          <img src="/jazai-symbol.svg" alt="JAZai Logo" className="w-8 h-8" />
-                          <span className="font-bold text-base text-gray-900">
-                            <span className="font-black">JAZ</span><span className="text-teal-500">ai</span> Doc
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-600 text-center">Сделано при помощи JAZai — интеллектуальный медицинский ассистент</p>
                       </div>
                     </div>
                   </div>
-                ))}
+
+                  <div className="mt-12 pt-6 border-t border-gray-200 flex flex-col items-center">
+                    <div className="flex items-center gap-2 mb-2">
+                      <img src="/jazai-symbol.svg" alt="JAZai Logo" className="w-8 h-8" />
+                      <span className="font-bold text-lg text-gray-900">
+                        <span className="font-black">JAZ</span><span className="text-teal-500">ai</span> Doc
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 text-center">Сделано при помощи JAZai — интеллектуальный медицинский ассистент</p>
+                  </div>
+                </div>
 
                 {showCoupons && (
                   <CouponPage
