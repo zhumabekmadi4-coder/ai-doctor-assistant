@@ -601,7 +601,7 @@ function HomeContent() {
 
         {/* ===== MAIN CONTENT ===== */}
         <main className="flex-1 p-4 sm:p-8 lg:p-12 overflow-x-hidden print:p-0 print:w-full print:m-0">
-          <div className="max-w-4xl space-y-8 print:w-[210mm] print:max-w-none print:space-y-4">
+          <div className="max-w-4xl space-y-8 print:w-full print:max-w-none print:space-y-4">
 
             {/* Print Header - Only on first page (consultation sheet) */}
             <div className="hidden print:block mb-4 print:pr-[20mm] print:pl-[30mm]">
@@ -984,7 +984,7 @@ function HomeContent() {
 
                 {/* Template pages for print */}
                 {attachedTemplates.map((at, idx) => (
-                  <div key={at.templateId + idx} className="hidden print:block print:pr-[20mm]" style={{ pageBreakBefore: 'always' }}>
+                  <div key={at.templateId + idx} className="hidden print:block print:w-full print:pr-[20mm] print:mt-12 print:pt-6 print:border-t border-gray-200 print:break-before-auto print:break-inside-avoid">
                     {/* No header on template pages - only consultation sheet has header */}
                     <div className="text-left mb-4 border-b pb-2">
                       <h2 className="text-lg font-bold text-gray-900 uppercase tracking-widest mb-1">{at.name}</h2>
@@ -993,7 +993,7 @@ function HomeContent() {
                       </p>
                     </div>
                     {at.content && (
-                      <div className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-4 print:mb-6 max-w-full overflow-hidden">
+                      <div className="text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed mb-4 print:mb-6 max-w-full overflow-hidden print-text-wrap">
                         {at.content}
                       </div>
                     )}

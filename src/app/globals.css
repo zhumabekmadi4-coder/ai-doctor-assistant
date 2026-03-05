@@ -240,8 +240,9 @@ body {
   body {
     background: white !important;
     margin: 0 !important;
-    padding: 0.5in 20mm 0.5in 0.5in !important; /* Standard margins with 20mm right margin */
+    padding: 10mm 15mm !important;
     width: 100% !important;
+    max-width: 100% !important;
     overflow-x: hidden !important;
   }
 
